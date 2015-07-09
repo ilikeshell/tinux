@@ -1,4 +1,4 @@
-;���뷽�� nasm IntoPM.asm -o IntoPM.com
+;编译方法 nasm IntoPM.asm -o IntoPM.com
 
 %include "pm.inc"
 
@@ -21,14 +21,14 @@ SelectorVedio	equ	LABLE_DESC_VEDIO - LABLE_GDT	;
 [section .s16]
 [bits 16]
 LABLE_BEGIN:
-;��ʼ���μĴ�����ջ��ָ��
+;初始化段寄存器和栈顶指针
 mov ax, cs
 mov ds, ax
 mov es, ax
 mov ss, ax
 mov sp,0100h
 
-;��ʼ��GDT
+;初始化GDT
 xor eax, eax
 mov ax, ds
 shl eax, 4
@@ -38,23 +38,23 @@ shr eax, 16
 mov [LABLE_DESC_CODE32 + 4], al
 mov [LABLE_DESC_CODE32 + 7], ah
 
-;����GDT
+;加载GDT
 xor eax, eax
 mov ax, cs
 shl eax, 4
 add eax, LABLE_GDT
-mov dword [GdtPtr + 2], eax				;16λ��32λ��ϱ��룬����dword�ᱻ��ȡ
+mov dword [GdtPtr + 2], eax				;16位和32位混合编码，不加dword会被截取
 lgdt [GdtPtr]
 
-;���ж�
+;关中断
 cli
 
-;��A20��ַ��
+;打开A20地址线
 in al, 92h
 or al, 00000010b
 out 92h, al
 
-;�л�������ģʽ
+;切换到保护模式
 mov eax, cr0
 or eax, 1
 mov cr0, eax

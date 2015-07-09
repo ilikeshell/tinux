@@ -1,4 +1,4 @@
-;���뷽�� nasm IntoPM.asm -o IntoPM.com
+;编译方法 nasm IntoPM.asm -o IntoPM.com
 
 %include "pm.inc"
 
@@ -7,26 +7,26 @@ org 0100h
 jmp	LABLE_BEGIN
 
 [section .gdt]
-LABLE_GDT:		Descriptor	0,		0,			0		;��������
-LABLE_DESC_CODE32:	Descriptor	0,		SegCode32Len -1,	DA_32 | DA_C	;32λ�����������,ִֻ�У���һ�´����
-LABLE_DESC_VEDIO:	Descriptor	0B8000h,	0FFFFh,			DA_DRW		;�Դ��������
+LABLE_GDT:		Descriptor	0,		0,			0		;空描述符
+LABLE_DESC_CODE32:	Descriptor	0,		SegCode32Len -1,	DA_32 | DA_C	;32位代码段描述符,只执行，非一致代码段
+LABLE_DESC_VEDIO:	Descriptor	0B8000h,	0FFFFh,			DA_DRW		;显存的描述符
 LABLE_DESC_NORMAL:	Descriptor	0,		0FFFFh,			DA_DRW		;
-LABLE_DESC_CODE16:	Descriptor	0,		0FFFFh,			DA_C		;16λ�����������,ִֻ�У���һ�´����,     �γ�ΪʲôΪ0FFFF��ʵ�ʳ���Ϊʲô�����?
+LABLE_DESC_CODE16:	Descriptor	0,		0FFFFh,			DA_C		;16位代码段描述符,只执行，非一致代码段,     段长为什么为0FFFF？实际长度为什么会崩溃?
 LABLE_DESC_STACK:	Descriptor	0,		TopOfStack,		DA_DRW | DA_32	;
-LABLE_DESC_DATA32:	Descriptor	0,		DataLen - 1,		DA_DRW		;32λ���ݶ�
-LABLE_DESC_TEST:	Descriptor	0500000h,	0FFFFh,			DA_DRW		;���ڲ��Եĳ���5M���ڴ��
+LABLE_DESC_DATA32:	Descriptor	0,		DataLen - 1,		DA_DRW		;32位数据段
+LABLE_DESC_TEST:	Descriptor	0500000h,	0FFFFh,			DA_DRW		;用于测试的超过5M的内存段
 
-GdtLen	equ	$ - LABLE_GDT				;GDT����
+GdtLen	equ	$ - LABLE_GDT				;GDT长度
 GdtPtr	db	GdtLen - 1				;
 	dd	0					;
 
-SelectorCode32	equ	LABLE_DESC_CODE32 - LABLE_GDT	;32λ�����ѡ����
-SelectorVedio	equ	LABLE_DESC_VEDIO - LABLE_GDT	;�Դ��ѡ����
+SelectorCode32	equ	LABLE_DESC_CODE32 - LABLE_GDT	;32位代码段选择子
+SelectorVedio	equ	LABLE_DESC_VEDIO - LABLE_GDT	;显存段选择子
 SelectorNormal	equ	LABLE_DESC_NORMAL - LABLE_GDT	;
-SelectorCode16	equ	LABLE_DESC_CODE16 - LABLE_GDT	;16λ�����ѡ����
-SelectorStack	equ	LABLE_DESC_STACK - LABLE_GDT	;32λջѡ����
-SelectorData32	equ	LABLE_DESC_DATA32 - LABLE_GDT	;32λ���ݶ�ѡ����
-SelectorTest:	equ	LABLE_DESC_TEST - LABLE_GDT	;���Զ�ѡ����
+SelectorCode16	equ	LABLE_DESC_CODE16 - LABLE_GDT	;16位代码段选择子
+SelectorStack	equ	LABLE_DESC_STACK - LABLE_GDT	;32位栈选择子
+SelectorData32	equ	LABLE_DESC_DATA32 - LABLE_GDT	;32位数据段选择子
+SelectorTest:	equ	LABLE_DESC_TEST - LABLE_GDT	;测试段选择子
 
 [section .data32]
 align 32
@@ -51,21 +51,21 @@ LABLE_STACK_BEGIN:
 [section .s16]
 [bits 16]
 LABLE_BEGIN:
-	;��ʼ���μĴ�����ջ��ָ��
+	;初始化段寄存器和栈顶指针
 	mov ax, cs
 	mov ds, ax
 	mov es, ax
 	mov ss, ax
 	mov sp,0100h
 
-	;���淵��ʵģʽʱ�Ķ�ֵ
+	;保存返回实模式时的段值
 	mov [LABLE_GO_BACK_TO_REAL + 3], ax
 
-	;����ʵģʽ�µ�ջ��ָ��
+	;保存实模式下的栈顶指针
 	mov [SPValueInRealMode], sp
 
 
-	;��ʼ��32λ�����������
+	;初始化32位代码段描述符
 	xor eax, eax
 	mov ax, ds
 	shl eax, 4
@@ -75,7 +75,7 @@ LABLE_BEGIN:
 	mov [LABLE_DESC_CODE32 + 4], al
 	mov [LABLE_DESC_CODE32 + 7], ah
 
-	;��ʼ��16λ�����������
+	;初始化16位代码段描述符
 	xor eax, eax
 	mov ax, ds
 	shl eax, 4
@@ -85,7 +85,7 @@ LABLE_BEGIN:
 	mov [LABLE_DESC_CODE16 + 4], al
 	mov [LABLE_DESC_CODE16 + 7], ah
 
-	;��ʼ��32λstack��������
+	;初始化32位stack段描述符
 	xor eax, eax
 	mov ax, ds
 	shl eax, 4
@@ -95,7 +95,7 @@ LABLE_BEGIN:
 	mov [LABLE_DESC_STACK + 4], al
 	mov [LABLE_DESC_STACK + 7], ah
 
-	;��ʼ��32λ���ݶ�������
+	;初始化32位数据段描述符
 	xor eax, eax
 	mov ax, ds
 	shl eax, 4
@@ -105,24 +105,24 @@ LABLE_BEGIN:
 	mov [LABLE_DESC_DATA32 + 4], al
 	mov [LABLE_DESC_DATA32 + 7], ah
 
-	;����GDT
+	;加载GDT
 	xor eax, eax
 	mov ax, cs
 	shl eax, 4
 	add eax, LABLE_GDT
-	mov dword [GdtPtr + 2], eax				;16λ��32λ��ϱ��룬����dword�ᱻ��ȡ
+	mov dword [GdtPtr + 2], eax				;16位和32位混合编码，不加dword会被截取
 	lgdt [GdtPtr]
 
 
-	;���ж�
+	;关中断
 	cli
 
-	;��A20��ַ��
+	;打开A20地址线
 	in al, 92h
 	or al, 00000010b
 	out 92h, al
 
-	;�л�������ģʽ
+	;切换到保护模式
 	mov eax, cr0
 	or eax, 1
 	mov cr0, eax
@@ -161,7 +161,7 @@ LABLE_CODE32_BEGIN:
 	mov ax, SelectorVedio
 	mov gs, ax
 
-	;��ʾ����ģʽ�ַ���
+	;显示保护模式字符串
 	mov esi, OffsetPMMessage
 	mov edi, 80 * 10 * 2
 	mov ah, 0Ch
@@ -174,18 +174,18 @@ LABLE_CODE32_BEGIN:
 	inc edi
 	inc edi
 	jmp .1
-.2:							;��ʾ����ģʽ�ַ�������
+.2:							;显示保护模式字符串结束
 
-	;��д���Դ��ڴ��
+	;读写测试大内存段
 	call DispReturn
 	call TestRead
 	call TestWrite
 	call TestRead
 
-	;ִ�����
+	;执行完毕
 	jmp SelectorCode16:0
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;	    ��һ��8λ���ַ���
+;;	    读一个8位的字符串
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 TestRead:
 	push eax
@@ -203,7 +203,7 @@ TestRead:
 	pop eax
 	ret
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;	    дһ��8λ���ַ���
+;;	    写一个8位的字符串
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 TestWrite:
 	push eax
@@ -227,7 +227,7 @@ TestWrite:
 	ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;��ʾAL�е�����
+;;显示AL中的数字
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 DispAL:
 	push ecx
@@ -250,14 +250,14 @@ DispAL:
 	add edi, 2
 	mov al, dl
 	loop .begin
-	add edi, 2								;���ո�
+	add edi, 2								;留空格
 
 	pop edx
 	pop ecx
 	ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;��ʾһ������
+;;显示一个换行
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 DispReturn:
 	push eax
