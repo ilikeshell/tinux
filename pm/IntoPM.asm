@@ -1,4 +1,5 @@
 ;编译方法 nasm IntoPM.asm -o IntoPM.com
+;采用UTF8编码
 
 %include "pm.inc"
 
