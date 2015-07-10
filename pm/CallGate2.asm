@@ -18,7 +18,7 @@ LABLE_DESC_DATA32:	Descriptor	0,		DataLen - 1,		DA_DRW		;32位数据段
 LABLE_DESC_TEST:	Descriptor	0500000h,	0FFFFh,			DA_DRW		;用于测试的超过5M的内存段
 LABLE_DESC_LDT:		Descriptor	0,		LdtLen,			DA_LDT		;LDT的全局描述符
 LABLE_DESC_CGATECODE:	Descriptor	0,		CodeCallGateLen,	DA_32 | DA_C	;调用门所要用到的代码段
-LABLE_DESC_RING3CODE:Descriptor 0,  CodeLenOfRing3, DA_32 | DA_C | DA_DPL3 ;ring3 code segment
+LABLE_DESC_RING3CODE:Descriptor 0,  CodeLenOfRing3, DA_32 | DA_CR | DA_DPL3 ;ring3 code segment
 LABLE_DESC_RING3STACK:Descriptor 0 ,LenOfRing3Stack, DA_DRW | DA_32 | DA_DPL3 ;ring3 stack 
 ;门
 LABLE_DESC_CALLGATE:	Gate	SelectorCGCode,		0,	0,	DA_386CGate | DA_DPL0	;
@@ -235,7 +235,7 @@ LABLE_CODE32_BEGIN:
 
 	;显示保护模式字符串
 	mov esi, OffsetPMMessage
-	mov edi, 80 * 10 * 2
+	mov edi, (80 * 9 + 0) * 2
 	mov ah, 0Ch
 .1:
 	cld
@@ -259,6 +259,8 @@ LABLE_CODE32_BEGIN:
 	call DispReturn
 	;执行调用门
 	call SelectorCG:0
+    
+    
     push SelectorRing3Stack
     push LenOfRing3Stack
     push SelectorRing3Code
@@ -430,26 +432,32 @@ CodeCallGateLen equ $ - LABLE_CODE_CALL_GATE_BEGIN
 ALIGN 32
 [bits 32]
 LABEL_CODE_RING3_START:
-    mov ax, cs
+    mov ax, SelectorRing3Code  ;mov ax, cs
     mov ds, ax
     mov esi, OffsetRing3Msg
-    mov ax, SelectorVedio
+    mov ax, SelectorVedio + SA_RPL3
     mov gs, ax
-    mov edi, (80 * 13 + 0)*2
+    xor edi, edi
+    ;JMP $
+    add edi, (80 * 10 + 0)*2
+    ;jmp $
     mov ah, 0Ch
+    ;mov al, '3'
     cld
 .1: lodsb
     cmp al, al
-    jz  .2
+    jz  .2 
     mov [gs:edi], ax
     inc edi
     inc edi
     jmp .1
 .2: jmp $ 
+    ;jmp $
     Ring3Msg:   db  "In Ring3",0
-    OffsetRing3Msg  equ Ring3Msg - $$
+    OffsetRing3Msg  equ Ring3Msg - LABEL_CODE_RING3_START
     
-    CodeLenOfRing3  equ $ - LABEL_CODE_RING3_START
+    CodeLenOfRing3  equ $ - LABEL_CODE_RING3_START - 1
+    
 [section .stackRing3]
 ALIGN 32
 [bits 32]
