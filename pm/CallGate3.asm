@@ -10,35 +10,37 @@ jmp	LABLE_BEGIN
 [section .gdt]
 LABLE_GDT:		Descriptor	0,		0,			0		;空描述符
 LABLE_DESC_CODE32:	Descriptor	0,		SegCode32Len -1,	DA_32 | DA_C	;32位代码段描述符,只执行，非一致代码段
-LABLE_DESC_VEDIO:	Descriptor	0B8000h,	0FFFFh,			DA_DRW	| DA_DPL3	;显存的描述符
-LABLE_DESC_NORMAL:	Descriptor	0,		0FFFFh,			DA_DRW		;
-LABLE_DESC_CODE16:	Descriptor	0,		0FFFFh,			DA_C		;16位代码段描述符,只执行，非一致代码段,     段长为什么为0FFFF？实际长度为什么会崩溃?
+LABLE_DESC_VEDIO:	Descriptor	0B8000h,	0FFFFh,		DA_DRW	| DA_DPL3	;显存的描述符
+LABLE_DESC_NORMAL:	Descriptor	0,		0FFFFh,		DA_DRW		;
+LABLE_DESC_CODE16:	Descriptor	0,		0FFFFh,		DA_C		;16位代码段描述符,只执行，非一致代码段,     段长为什么为0FFFF？实际长度为什么会崩溃?
 LABLE_DESC_STACK:	Descriptor	0,		TopOfStack,		DA_DRW | DA_32	;
 LABLE_DESC_DATA32:	Descriptor	0,		DataLen - 1,		DA_DRW		;32位数据段
-LABLE_DESC_TEST:	Descriptor	0500000h,	0FFFFh,			DA_DRW		;用于测试的超过5M的内存段
-LABLE_DESC_LDT:		Descriptor	0,		LdtLen,			DA_LDT		;LDT的全局描述符
+LABLE_DESC_TEST:	Descriptor	0500000h,	0FFFFh,		DA_DRW		;用于测试的超过5M的内存段
+LABLE_DESC_LDT:	Descriptor	0,		LdtLen,		DA_LDT		;LDT的全局描述符
 LABLE_DESC_CGATECODE:	Descriptor	0,		CodeCallGateLen,	DA_32 | DA_C	;调用门所要用到的代码段
-LABLE_DESC_RING3CODE:	Descriptor	0,		CodeLenOfRing3,		DA_32 | DA_CR | DA_DPL3 ;ring3 code segment
-LABLE_DESC_RING3STACK:	Descriptor	0 ,		LenOfRing3Stack,	DA_DRW | DA_32 | DA_DPL3 ;ring3 stack 
+LABLE_DESC_RING3CODE:	Descriptor	0,		CodeLenOfRing3,	DA_32 | DA_CR | DA_DPL3 ;ring3 code segment
+LABLE_DESC_RING3STACK:Descriptor	0,		LenOfRing3Stack,	DA_DRW | DA_32 | DA_DPL3 ;ring3 stack
+LABLE_DESC_TSS:	Descriptor	0,		TSSLen,		DA_386TSS
 ;门
-LABLE_DESC_CALLGATE:	Gate	SelectorCGCode,		0,	0,	DA_386CGate | DA_DPL0	;
+LABLE_DESC_CALLGATE:	Gate	SelectorCGCode,		0,	0,	DA_386CGate | DA_DPL3	;
 
 GdtLen	equ	$ - LABLE_GDT				;GDT长度
 GdtPtr	db	GdtLen - 1				;
 	dd	0					;
 ;GDT选择子
-SelectorCode32		equ	LABLE_DESC_CODE32 - LABLE_GDT			;32位代码段选择子
+SelectorCode32	equ	LABLE_DESC_CODE32 - LABLE_GDT			;32位代码段选择子
 SelectorVedio		equ	LABLE_DESC_VEDIO - LABLE_GDT			;显存段选择子
-SelectorNormal		equ	LABLE_DESC_NORMAL - LABLE_GDT			;
-SelectorCode16		equ	LABLE_DESC_CODE16 - LABLE_GDT			;16位代码段选择子
+SelectorNormal	equ	LABLE_DESC_NORMAL - LABLE_GDT			;
+SelectorCode16	equ	LABLE_DESC_CODE16 - LABLE_GDT			;16位代码段选择子
 SelectorStack		equ	LABLE_DESC_STACK - LABLE_GDT			;32位栈选择子
-SelectorData32		equ	LABLE_DESC_DATA32 - LABLE_GDT			;32位数据段选择子
+SelectorData32	equ	LABLE_DESC_DATA32 - LABLE_GDT			;32位数据段选择子
 SelectorTest:		equ	LABLE_DESC_TEST - LABLE_GDT			;测试段选择子
 SelectorLdt:		equ	LABLE_DESC_LDT - LABLE_GDT			;LDT在GDT中的选择子
-SelectorCGCode		equ	LABLE_DESC_CGATECODE - LABLE_GDT		;调用门所用到的代码段在GDT中的选择子
-SelectorCG		equ	LABLE_DESC_CALLGATE - LABLE_GDT			;
+SelectorCGCode	equ	LABLE_DESC_CGATECODE - LABLE_GDT		;调用门所用到的代码段在GDT中的选择子
+SelectorCG		equ	LABLE_DESC_CALLGATE - LABLE_GDT + SA_RPL3	;
 SelectorRing3Code	equ	LABLE_DESC_RING3CODE - LABLE_GDT + SA_RPL3	;
-SelectorRing3Stack	equ	LABLE_DESC_RING3STACK - LABLE_GDT + SA_RPL3	;
+SelectorRing3Stack	equ	LABLE_DESC_RING3STACK - LABLE_GDT + SA_RPL3;
+SelectorTss		equ	LABLE_DESC_TSS - LABLE_GDT 			;
 
 
 [section .ldt]
@@ -176,6 +178,16 @@ LABLE_BEGIN:
 	shr eax, 16
 	mov [LABLE_DESC_RING3STACK + 4], al
 	mov [LABLE_DESC_RING3STACK + 7], ah
+	
+	;初始化TSS描述符
+	xor eax, eax
+	mov ax, ds
+	shl eax, 4
+	add eax, LABLE_TSS_BEGIN
+	mov [LABLE_DESC_TSS + 2], ax
+	shr eax, 16
+	mov [LABLE_DESC_TSS + 4], al
+	mov [LABLE_DESC_TSS + 7], ah
 
 	;加载GDT
 	xor eax, eax
@@ -257,20 +269,19 @@ LABLE_CODE32_BEGIN:
 	;执行完毕
 	;jmp SelectorCode16:0
 	call DispReturn
-	;执行调用门
-	call SelectorCG:0
+	;加载TSS
+	mov ax, SelectorTss
+	ltr ax
+	    
     
-    
-    push SelectorRing3Stack
-    push LenOfRing3Stack
-    push SelectorRing3Code
-    push 0
-    retf
+	push SelectorRing3Stack
+	push LenOfRing3Stack
+	push SelectorRing3Code
+	push 0
+	retf
     
 
-	mov ax, SelectorLdt
-	lldt ax
-	jmp SelectorLdtCode:0
+	
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;	    读一个8位的字符串
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -425,7 +436,12 @@ LABLE_CODE_CALL_GATE_BEGIN:
 	mov ah,	0Ch
 	mov al, 'C'
 	mov [gs:edi], ax
-	retf							;ret与retf的区别
+	
+	;Load LDT
+	mov ax, SelectorLdt
+	lldt ax
+	jmp SelectorLdtCode:0
+	;retf							;ret与retf的区别
 CodeCallGateLen equ $ - LABLE_CODE_CALL_GATE_BEGIN
 
 [section .codeRing3]
@@ -448,7 +464,11 @@ LABEL_CODE_RING3_START:
     inc edi
     inc edi
     jmp .1
-.2: jmp $ 
+.2: ;jmp $ 
+	;执行调用门
+	call SelectorCG:0
+	jmp $
+	
     Ring3Msg:   db  "In Ring3",0
     OffsetRing3Msg  equ Ring3Msg - LABEL_CODE_RING3_START
     CodeLenOfRing3  equ $ - LABEL_CODE_RING3_START - 1
@@ -457,10 +477,42 @@ LABEL_CODE_RING3_START:
 ALIGN 32
 [bits 32]
 RING3_STACK_BEGIN:
-times 1024 db 0
+	times 1024 db 0
 LenOfRing3Stack equ $ - RING3_STACK_BEGIN - 1
 
-	
+[section .tss]
+ALIGN 32
+[bits 32]
+LABLE_TSS_BEGIN:
+	DD	0		;
+	DD	TopOfStack	;ring0级堆栈指针
+	DD	SelectorStack	;ring0级堆栈选择子
+	DD 	0		;ring1级堆栈指针
+	DD	0		;ring1级堆栈选择子
+	DD 	0		;ring2级堆栈指针
+	DD	0		;ring2级堆栈选择子
+	DD	0		;CR3
+	DD	0		;EIP
+	DD	0		;EFLAGS
+	DD	0		;EAX
+	DD	0		;ECX
+	DD	0		;EDX
+	DD	0		;EBX
+	DD	0		;ESP
+	DD	0		;EBP
+	DD	0		;ESI
+	DD	0		;EDI
+	DD	0		;ES
+	DD	0		;CS
+	DD	0		;SS
+	DD	0		;DS
+	DD	0		;FS
+	DD	0		;GS
+	DD	0		;LDT
+	DW 	0		;调试陷阱标志
+	DW 	$ - LABLE_TSS_BEGIN + 2	;I/O位图基址
+	DB 	0FFh		;I/O位图结束标志
+TSSLen		equ	$ - LABLE_TSS_BEGIN - 1
     
     
 
