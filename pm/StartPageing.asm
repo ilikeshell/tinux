@@ -15,8 +15,8 @@ LABLE_DESC_NORMAL:	Descriptor	0,		0FFFFh,		DA_DRW		;
 LABLE_DESC_CODE16:	Descriptor	0,		0FFFFh,		DA_C		;16位代码段描述符,只执行，非一致代码段,     段长为什么为0FFFF？实际长度为什么会崩溃?
 LABLE_DESC_STACK:	Descriptor	0,		TopOfStack,		DA_DRW | DA_32;
 LABLE_DESC_DATA32:	Descriptor	0,		DataLen - 1,		DA_DRW		;32位数据段
-LABLE_DESC_PDIR:	Descriptor	200000h,	4095,			DA_DRW		;页目录表描述符,从2M的地址开始
-LABLE_DESC_PTBL:	Descriptor	201000h,	
+LABLE_DESC_PAGE_DIR:Descriptor	200000h,	4095,			DA_DRW		;页目录表描述符,从2M的地址开始
+LABLE_DESC_PAGE_TBL:Descriptor	201000h,	1023,			DA_DRW | DA_LIMIT_4K	;
 
 
 GdtLen	equ	$ - LABLE_GDT				;GDT长度
@@ -29,6 +29,8 @@ SelectorNormal	equ	LABLE_DESC_NORMAL - LABLE_GDT	;返回时加载的选择子
 SelectorCode16	equ	LABLE_DESC_CODE16 - LABLE_GDT	;16位代码段选择子
 SelectorStack		equ	LABLE_DESC_STACK - LABLE_GDT	;32位栈选择子
 SelectorData32	equ	LABLE_DESC_DATA32 - LABLE_GDT	;32位数据段选择子
+SelectorPageDir	equ	LABLE_DESC_PAGE_DIR - LABLE_GDT	;
+SelectorPageTbl	equ	LABLE_DESC_PAGE_TBL - LABLE_GDT	;
 
 
 [section .data32]
@@ -39,8 +41,6 @@ align 32
 	;string
 	PMMessage:		db	"In Protected Mode Now.^-^",0	;string will be shown in Protected Mode
 	OffsetPMMessage	equ	PMMessage - $$
-	StrTest:		db	"ABCDEFGHIJKLMNOPQRSTUVWXYZ",0
-	OffsetStrTest		equ	StrTest - $$
 	DataLen		equ	$ - $$				; $ - $$ = $ - LABEL_DATA ? m
 ; end of [section .data32]
 
@@ -178,10 +178,12 @@ LABLE_CODE32_BEGIN:
 	inc edi
 	jmp .1
 .2:							;显示保护模式字符串结束
-
-	;读写测试大内存段
 	call DispReturn
-	
+	;开启分页机制
+SetupPaging:
+	mov ax, SelectorPageDir
+	mov ds, ax
+	mov eax, 1024
 
 	;执行完毕
 	jmp SelectorCode16:0
