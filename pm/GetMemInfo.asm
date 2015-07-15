@@ -2,10 +2,11 @@
 ;采用UTF8编码
 
 %include "pm.inc"
+%include "lib.inc"
 
 org 0100h
 
-jmp	LABLE_BEGIN
+jmp	LABLE_DEBUG
 
 [section .gdt]
 LABLE_GDT:		Descriptor	0,		0,			0		;空描述符
@@ -42,10 +43,43 @@ align 32
 	LABLE_DATA32_BEGIN:
 	SPValueInRealMode	dw	0			;
 	;string
-	PMMessage:		db	"In Protected Mode Now.^-^",0	;string will be shown in Protected Mode
-	OffsetPMMessage	equ	PMMessage - $$
-	SetupPagingMsg:	db 	"Setup pageing succsessful!",0
-	OffsetPagingMsg:	equ	SetupPagingMsg - $$
+	_PMMessage:		db	"In Protected Mode Now.^-^",0Ah,0AH,0	;string will be shown in Protected Mode
+	_SetupPagingMsg:	db 	"Setup pageing succsessful!",0Ah,0AH,0
+	_szMemChkTitle:	db	"BaseAddrL BaseAddrH LengthLow Lengthhigh   Type",0Ah,0
+	_szRamSize		db	"Ram Size:",0
+	_szReturn		db	0Ah,0
+	;var
+	_dwMCRNumber		dd	0
+	_dwDispPos		dd	(80 * 6 + 0) * 2
+	_dwRamSize		dd	0
+	_ARDStruct:
+		_dwBaseAddrLow:	dd	0
+		_dwBaseAddrHigh:	dd	0
+		_dwLengthLow:		dd	0
+		_dwLengthHigh:	dd	0
+		_dwType:		dd	0
+	
+	_MemChkBuf	times	256	db	0
+	
+	;保护模式下使用的符号
+	OffsetPMMessage	equ	_PMMessage - $$
+	OffsetPagingMsg:	equ	_SetupPagingMsg - $$
+	szMemChkTitle		equ	_szMemChkTitle	- $$
+	szRAMSize		equ	_szRamSize	- $$
+	szReturn		equ	_szReturn	- $$
+	dwDispPos		equ	_dwDispPos	- $$
+	dwMemSize		equ	_dwRamSize	- $$
+	dwMCRNumber		equ	_dwMCRNumber	- $$
+	ARDStruct		equ	_ARDStruct	- $$
+	   dwBaseAddrLow	equ	_dwBaseAddrLow-$$
+	   dwBaseAddrHigh	equ	_dwBaseAddrHigh-$$
+	   dwLengthLow	equ	_dwLengthLow	- $$
+	   dwLengthHigh	equ	_dwLengthHigh	- $$
+	   dwType		equ	_dwType	- $$
+	MemChkBuf		equ	_MemChkBuf	- $$
+	
+	
+	
 	DataLen		equ	$ - $$				; $ - $$ = $ - LABEL_DATA ? m
 ; end of [section .data32]
 
@@ -58,6 +92,15 @@ LABLE_STACK_BEGIN:
 
 [section .s16]
 [bits 16]
+LABLE_DEBUG:
+	mov  dx, cs
+	mov  cx, 800h  ;;400h,自己乱定的，可以改，这个就是调试时用的断点
+	mov  ds, cx
+	mov  byte [ds:0], 00eah    ;;ea是jmp的机器码，加下面两句就是 jmp offset:seg，也就是跳回
+	mov  word [ds:1],LABLE_BEGIN
+	mov  word [ds:3], dx
+	jmp  800h:0h           ;;跳到断点
+
 LABLE_BEGIN:
 	;初始化段寄存器和栈顶指针
 	mov ax, cs
@@ -65,6 +108,9 @@ LABLE_BEGIN:
 	mov es, ax
 	mov ss, ax
 	mov sp,0100h
+	;xchg bx,bx
+	jmp $
+
 
 	;保存返回实模式时的段值
 	mov [LABLE_GO_BACK_TO_REAL + 3], ax
@@ -181,10 +227,14 @@ LABLE_CODE32_BEGIN:
 	inc edi
 	jmp .1
 .2:								;显示保护模式字符串结束
-	call DispReturn
 	;call SetupPaging					;开启分页机制
 	
 	
+	push szMemChkTitle
+	call DispStr
+	add esp, 4
+	
+	;call DispMemInfo
 	
 	;执行完毕
 	jmp SelectorCode16:0
@@ -249,6 +299,51 @@ SetupPaging:
 	jmp .3
 .4:	
 	ret
+	
+;在保护模式下显示内存信息
+DispMemInfo:
+	push esi
+	push edi
+	push ecx
+	
+	mov esi, MemChkBuf
+	mov ecx, [dwMCRNumber]
+.loop:
+	mov edx, 5
+	mov edi, ARDStruct
+    .1:
+	push dword [esi]
+	call DispInt
+	pop eax
+	stosd
+	add esi, 4
+	dec edx
+	cmp edx, 0
+	jnz .1
+	call DispReturn
+	cmp dword [dwType], 1
+	jne .2
+	mov eax, [dwBaseAddrLow]
+	add eax, [dwLengthLow]
+	cmp eax, [dwMemSize]
+	jb .2
+	mov [dwMemSize], eax
+    .2:
+	loop .loop
+	
+	call DispReturn
+	push szRAMSize
+	call DispStr
+	add esp, 4
+	
+	push dword [dwMemSize]
+	call DispInt
+	add esp,4
+	
+	pop ecx
+	pop edi
+	pop esi
+	ret
 ;end of [section .s32]
 SegCode32Len	equ	$ - LABLE_CODE32_BEGIN
 
@@ -264,8 +359,8 @@ LABLE_CODE16_BEGIN:
 	mov fs, ax
 	
 	mov eax, cr0
-	and eax, 7FFFFFFEh					;关闭分页并退出保护模式
-	;and al, 1110B
+	;and eax, FFFFFFFEh					;关闭分页并退出保护模式
+	and al, 1110B
 	mov cr0, eax
 	LABLE_GO_BACK_TO_REAL:
 	jmp 0:LABEL_REAL_ENTRY
