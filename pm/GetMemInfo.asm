@@ -2,7 +2,7 @@
 ;采用UTF8编码
 
 %include "pm.inc"
-%include "lib.inc"
+
 
 org 0100h
 
@@ -109,7 +109,7 @@ LABLE_BEGIN:
 	mov ss, ax
 	mov sp,0100h
 	;xchg bx,bx
-	jmp $
+	;jmp $
 
 
 	;保存返回实模式时的段值
@@ -230,9 +230,9 @@ LABLE_CODE32_BEGIN:
 	;call SetupPaging					;开启分页机制
 	
 	
-	push szMemChkTitle
-	call DispStr
-	add esp, 4
+	;push szMemChkTitle
+	;call DispStr
+	;add esp, 4
 	
 	;call DispMemInfo
 	
@@ -365,3 +365,6 @@ LABLE_CODE16_BEGIN:
 	LABLE_GO_BACK_TO_REAL:
 	jmp 0:LABEL_REAL_ENTRY
 SegCode16Len	equ	$ - $$
+
+%include "lib.inc"
+
