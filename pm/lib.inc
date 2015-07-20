@@ -44,11 +44,11 @@ DispStr:
 	push esi
 	push edi
 	
-	mov ah, 07h
+	mov ah, 0Fh
 	mov esi, [ebp + 8]			;要显示的字符串首地址
 	mov edi, [dwDispPos]		;
 .1:	lodsb
-	test al, al
+	test al, al				;al = 0 or not?
 	jz .2
 	cmp al, 0Ah
 	jnz .3
@@ -56,7 +56,7 @@ DispStr:
 	mov eax, edi
 	mov bl, 160
 	div bl
-	and eax, 0FFh
+	;and eax, 0FFh
 	inc eax
 	mov bl, 160
 	mul bl

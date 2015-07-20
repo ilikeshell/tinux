@@ -43,8 +43,8 @@ align 32
 	LABLE_DATA32_BEGIN:
 	SPValueInRealMode	dw	0			;
 	;string
-	_PMMessage:		db	"In Protected Mode Now.^-^",0Ah,0AH,0	;string will be shown in Protected Mode
-	_SetupPagingMsg:	db 	"Setup pageing succsessful!",0Ah,0AH,0
+	_PMMessage:		db	"In Protected Mode Now.^-^",0Ah,0Ah,0	;string will be shown in Protected Mode
+	_SetupPagingMsg:	db 	"Setup pageing succsessful!",0Ah,0Ah,0
 	_szMemChkTitle:	db	"BaseAddrL BaseAddrH LengthLow Lengthhigh   Type",0Ah,0
 	_szRamSize		db	"Ram Size:",0
 	_szReturn		db	0Ah,0
@@ -62,8 +62,8 @@ align 32
 	_MemChkBuf	times	256	db	0
 	
 	;保护模式下使用的符号
-	OffsetPMMessage	equ	_PMMessage - $$
-	OffsetPagingMsg:	equ	_SetupPagingMsg - $$
+	szPMMessage		equ	_PMMessage - $$
+	szPagingMsg:		equ	_SetupPagingMsg - $$
 	szMemChkTitle		equ	_szMemChkTitle	- $$
 	szRAMSize		equ	_szRamSize	- $$
 	szReturn		equ	_szReturn	- $$
@@ -214,25 +214,16 @@ LABLE_CODE32_BEGIN:
 	mov gs, ax
 
 	;显示保护模式字符串
-	mov esi, OffsetPMMessage
-	mov edi, 80 * 10 * 2
 	mov ah, 0Ch
-.1:
-	cld
-	lodsb
-	test al, al
-	jz .2
-	mov [gs:edi], ax
-	inc edi
-	inc edi
-	jmp .1
-.2:								;显示保护模式字符串结束
+	push szPMMessage
+	call DispStr
+	add esp, 4
+							;显示保护模式字符串结束
+	push szMemChkTitle
+	call DispStr
+	add esp, 4
+	
 	;call SetupPaging					;开启分页机制
-	
-	
-	;push szMemChkTitle
-	;call DispStr
-	;add esp, 4
 	
 	;call DispMemInfo
 	
@@ -285,7 +276,7 @@ SetupPaging:
 	mov ds, ax
 	mov ax, SelectorVedio
 	mov gs, ax
-	mov esi, OffsetPagingMsg
+	mov esi, szPagingMsg
 	mov edi, 80 * 11 * 2
 	mov ah, 0Ch
 	cld
@@ -344,6 +335,8 @@ DispMemInfo:
 	pop edi
 	pop esi
 	ret
+	
+	%include "lib.inc"				;不放在这里会出现“offset outside of CS limits”错误
 ;end of [section .s32]
 SegCode32Len	equ	$ - LABLE_CODE32_BEGIN
 
@@ -366,5 +359,5 @@ LABLE_CODE16_BEGIN:
 	jmp 0:LABEL_REAL_ENTRY
 SegCode16Len	equ	$ - $$
 
-%include "lib.inc"
+
 
