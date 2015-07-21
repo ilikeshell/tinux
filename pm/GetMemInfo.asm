@@ -51,7 +51,7 @@ align 32
 	;var
 	_dwMCRNumber		dd	0
 	_dwDispPos		dd	(80 * 6 + 0) * 2
-	_dwRamSize		dd	0
+	_dwMemSize		dd	0
 	_ARDStruct:
 		_dwBaseAddrLow:	dd	0
 		_dwBaseAddrHigh:	dd	0
@@ -68,7 +68,7 @@ align 32
 	szRAMSize		equ	_szRamSize	- $$
 	szReturn		equ	_szReturn	- $$
 	dwDispPos		equ	_dwDispPos	- $$
-	dwMemSize		equ	_dwRamSize	- $$
+	dwMemSize		equ	_dwMemSize	- $$
 	dwMCRNumber		equ	_dwMCRNumber	- $$
 	ARDStruct		equ	_ARDStruct	- $$
 	   dwBaseAddrLow	equ	_dwBaseAddrLow-$$
@@ -225,6 +225,7 @@ LABEL_REAL_ENTRY:
 LABLE_CODE32_BEGIN:
 	mov ax, SelectorData32
 	mov ds, ax
+	mov es, ax
 	mov ax, SelectorStack
 	mov ss, ax
 	mov esp, TopOfStack
