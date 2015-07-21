@@ -94,7 +94,7 @@ LABLE_STACK_BEGIN:
 [bits 16]
 LABLE_DEBUG:
 	mov  dx, cs
-	mov  cx, 800h  ;;400h,自己乱定的，可以改，这个就是调试时用的断点
+	mov  cx, 800h  ;;800h,自己乱定的，可以改，这个就是调试时用的断点
 	mov  ds, cx
 	mov  byte [ds:0], 00eah    ;;ea是jmp的机器码，加下面两句就是 jmp offset:seg，也就是跳回
 	mov  word [ds:1],LABLE_BEGIN
@@ -108,17 +108,35 @@ LABLE_BEGIN:
 	mov es, ax
 	mov ss, ax
 	mov sp,0100h
-	;xchg bx,bx
-	;jmp $
+	
+	
+	
+	;通过int15h中断获取内存信息，输入：eax=0E820h, ebx(后序值), es:di(指向一个ARDS),ecx(填充的字节)，edx="SAMP"(0534D4150h)
+	;			       输出：CF=0（正确，否则存在错误，终止程序），eax="SAMP"，es:di，ecx，ebx(后序值)
+	mov ebx, 0
+	mov di, _MemChkBuf
+	.loop:
+	mov eax, 0E820h
+	mov ecx, 20
+	mov edx, 0534D4150h
+	int 15h
+	jc LABEL_GET_MEM_INFO_FAILED
+	inc dword [_dwMCRNumber];				;记录内存块数
+	add di, 20
+	cmp ebx, 0
+	jnz .loop
+	jmp LABEL_GET_MEM_INFO_OK
+LABEL_GET_MEM_INFO_FAILED:
+	mov dword [_dwMCRNumber], 0
+LABEL_GET_MEM_INFO_OK:
 
 
 	;保存返回实模式时的段值
+	mov ax, CS
 	mov [LABLE_GO_BACK_TO_REAL + 3], ax
-
 	;保存实模式下的栈顶指针
 	mov [SPValueInRealMode], sp
-
-
+	
 	;初始化32位代码段描述符
 	xor eax, eax
 	mov ax, ds
@@ -225,7 +243,9 @@ LABLE_CODE32_BEGIN:
 	
 	;call SetupPaging					;开启分页机制
 	
-	;call DispMemInfo
+	call DispMemInfo
+	
+	
 	
 	;执行完毕
 	jmp SelectorCode16:0
@@ -356,6 +376,7 @@ LABLE_CODE16_BEGIN:
 	and al, 1110B
 	mov cr0, eax
 	LABLE_GO_BACK_TO_REAL:
+	
 	jmp 0:LABEL_REAL_ENTRY
 SegCode16Len	equ	$ - $$
 

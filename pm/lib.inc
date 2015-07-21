@@ -5,7 +5,8 @@
 DispInt:
 	push ebx
 	
-	mov ebx, [esp + 4]
+	mov ebx, [esp + 8]	;EBX保存值,先前这里犯了大错误，写成了mov ebx, [esp + 4]
+	
 	mov eax, ebx
 	shr eax, 24
 	call DispAL
@@ -81,6 +82,9 @@ DispStr:
 DispAL:
 	push ecx
 	push edx
+	push edi
+	
+	mov edi, [dwDispPos]
 	
 	mov ah, 0Ch								;
 	mov dl, al
@@ -101,6 +105,9 @@ DispAL:
 	loop .begin
 	;add edi, 2								;留空格
 
+	mov [dwDispPos], edi
+	
+	pop edi
 	pop edx
 	pop ecx
 	ret
