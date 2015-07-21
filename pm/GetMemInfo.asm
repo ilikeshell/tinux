@@ -17,7 +17,7 @@ LABLE_DESC_CODE16:	Descriptor	0,		0FFFFh,		DA_C		;16位代码段描述符,只执
 LABLE_DESC_STACK:	Descriptor	0,		TopOfStack,		DA_DRW | DA_32;
 LABLE_DESC_DATA32:	Descriptor	0,		DataLen - 1,		DA_DRW		;32位数据段
 LABLE_DESC_PAGE_DIR:Descriptor	PageDirBase,	4095,			DA_DRW		;页目录表描述符,从2M的地址开始
-LABLE_DESC_PAGE_TBL:Descriptor	PageTblBase,	1023,			DA_DRW | DA_LIMIT_4K	;
+LABLE_DESC_PAGE_TBL:Descriptor	PageTblBase,	4096*8-1,		DA_DRW		;
 
 
 GdtLen	equ	$ - LABLE_GDT				;GDT长度
@@ -242,10 +242,10 @@ LABLE_CODE32_BEGIN:
 	call DispStr
 	add esp, 4
 	
-	;call SetupPaging					;开启分页机制
+	
 	
 	call DispMemInfo
-	
+	call SetupPaging					;开启分页机制
 	
 	
 	;执行完毕
@@ -257,31 +257,45 @@ LABLE_CODE32_BEGIN:
 	
 ;开启分页机制
 SetupPaging:
-	;初始化页表目录，
+	;计算需要多少个页表目录
+	xor edx, edx
+	mov eax, [dwMemSize]
+	mov ebx, 400000h						;一个页表可以映射4M的内存
+	div ebx
+	test edx, edx
+	jz LABLE_NO_REMAINDER
+	inc eax
+	LABLE_NO_REMAINDER:
+	mov ecx, eax
+	push ecx
+	
+	;初始化页目录
 	mov ax, SelectorPageDir
 	mov es, ax
-	xor edi, edi						;为stosd指令做准备
-	mov ecx, 1024						;共1024个页目录项
-	mov eax, PageTblBase | PG_P | PG_RWW | PG_USU	;页表基址+属性
-	cld
-	.loop1:
+	xor edi, edi
+	xor eax, eax
+	add eax, PageTblBase | PG_P | PG_USU | PG_RWW
+	.1:
 	stosd
 	add eax, 4096
-	loop .loop1
+	loop .1
 	
 	;初始化页表
-	mov ax, SelectorPageTbl;
+	pop eax
+	mov ebx, 1024
+	mul ebx
+	mov ecx, ebx
+	
+	mov ax, SelectorPageTbl
 	mov es, ax
 	xor edi, edi
-	mov ecx, 1024*1024
 	xor eax, eax
-	mov eax, PG_P | PG_RWW | PG_USU
-	cld
-	.loop2:
+	add eax, PG_P | PG_USU | PG_RWW
+	.2:
 	stosd
 	add eax, 4096
-	loop .loop2
-	
+	loop .2
+
 	;页目录和页表初始化完毕，然后加载
 	mov eax, PageDirBase					;PageDirBase必须4K对齐
 	mov cr3, eax
@@ -293,23 +307,11 @@ SetupPaging:
 	nop
 	
 	;显示分页成功字符串
-	mov ax, SelectorData32
-	mov ds, ax
-	mov ax, SelectorVedio
-	mov gs, ax
-	mov esi, szPagingMsg
-	mov edi, 80 * 11 * 2
-	mov ah, 0Ch
-	cld
-.3:
-	lodsb
-	test al, al
-	jz .4
-	mov [gs:edi], ax
-	inc edi
-	inc edi
-	jmp .3
-.4:	
+	call DispReturn
+	call DispReturn
+	push szPagingMsg
+	call DispStr
+	add esp, 4
 	ret
 	
 ;在保护模式下显示内存信息
@@ -373,8 +375,8 @@ LABLE_CODE16_BEGIN:
 	mov fs, ax
 	
 	mov eax, cr0
-	;and eax, FFFFFFFEh					;关闭分页并退出保护模式
-	and al, 1110B
+	and eax, 7FFFFFFEh					;关闭分页并退出保护模式
+	;and al, 1110B
 	mov cr0, eax
 	LABLE_GO_BACK_TO_REAL:
 	
