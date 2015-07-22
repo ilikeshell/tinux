@@ -140,3 +140,40 @@ DispReturn1:
 	pop ebx
 	pop eax
 	ret
+;换行结束
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;内存拷贝 void* MemCpy(void* es:pDest, void* ds:pSrc, int iSize);
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+MemCpy:
+	push ebp
+	mov ebp, esp
+	
+	push esi
+	push edi
+	push ecx
+	
+	mov edi, [ebp+8]
+	mov esi, [ebp+12]
+	mov ecx, [ebp+16]
+	
+	.1:
+	cmp ecx, 0
+	jz .2
+	mov al, [ds:esi]
+	mov [es:edi], al
+	inc esi
+	inc edi
+	dec ecx
+	jmp .1
+	.2:
+	mov eax, [ebp+8]
+	
+	pop ecx
+	pop edi
+	pop esi
+	
+	pop ebp
+	ret
+
+

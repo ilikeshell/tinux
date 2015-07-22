@@ -10,32 +10,40 @@ jmp	LABLE_DEBUG
 
 [section .gdt]
 LABLE_GDT:		Descriptor	0,		0,			0		;空描述符
-LABLE_DESC_CODE32:	Descriptor	0,		SegCode32Len -1,	DA_32 | DA_C	;32位代码段描述符,只执行，非一致代码段
+LABLE_DESC_CODE32:	Descriptor	0,		SegCode32Len -1,	DA_32 | DA_CR	;32位代码段描述符,只执行，非一致代码段
 LABLE_DESC_VEDIO:	Descriptor	0B8000h,	0FFFFh,		DA_DRW		;显存的描述符
 LABLE_DESC_NORMAL:	Descriptor	0,		0FFFFh,		DA_DRW		;
 LABLE_DESC_CODE16:	Descriptor	0,		0FFFFh,		DA_C		;16位代码段描述符,只执行，非一致代码段,     段长为什么为0FFFF？实际长度为什么会崩溃?
 LABLE_DESC_STACK:	Descriptor	0,		TopOfStack,		DA_DRW | DA_32;
 LABLE_DESC_DATA32:	Descriptor	0,		DataLen - 1,		DA_DRW		;32位数据段
-LABLE_DESC_PAGE_DIR:Descriptor	PageDirBase,	4095,			DA_DRW		;页目录表描述符,从2M的地址开始
-LABLE_DESC_PAGE_TBL:Descriptor	PageTblBase,	4096*8-1,		DA_DRW		;
+LABLE_DESC_FLAT_C:	Descriptor	0,		0FFFFFh,		DA_CR | DA_32 | DA_LIMIT_4K;
+LABLE_DESC_FLAT_RW:	Descriptor	0,		0FFFFFh,		DA_DRW|DA_LIMIT_4K	;
 
 
 GdtLen	equ	$ - LABLE_GDT				;GDT长度
 GdtPtr	db	GdtLen - 1				;
 	dd	0					;
 
-PageDirBase		equ	200000h				;页目录基址
-PageTblBase		equ	201000h				;页表基址
-
+;定义选择子
 SelectorCode32	equ	LABLE_DESC_CODE32 - LABLE_GDT	;32位代码段选择子
 SelectorVedio		equ	LABLE_DESC_VEDIO - LABLE_GDT		;显存段选择子
 SelectorNormal	equ	LABLE_DESC_NORMAL - LABLE_GDT	;返回时加载的选择子
 SelectorCode16	equ	LABLE_DESC_CODE16 - LABLE_GDT	;16位代码段选择子
 SelectorStack		equ	LABLE_DESC_STACK - LABLE_GDT		;32位栈选择子
 SelectorData32	equ	LABLE_DESC_DATA32 - LABLE_GDT	;32位数据段选择子
-SelectorPageDir	equ	LABLE_DESC_PAGE_DIR - LABLE_GDT	;
-SelectorPageTbl	equ	LABLE_DESC_PAGE_TBL - LABLE_GDT	;
+SelectorFlatC		equ	LABLE_DESC_FLAT_C - LABLE_GDT	;
+SelectorFlatRW	equ	LABLE_DESC_FLAT_RW - LABLE_GDT	;
 
+;定义常量
+PageDirBase1		equ	200000h				;页目录基址1
+PageTblBase1		equ	201000h				;页表基址1
+PageDirBase2		equ	210000h				;页目录基址2
+PageTblBase2		equ	211000h				;页表基址2
+
+LinearAddrDemo	equ	00401000h
+ProcFoo		equ	00401000h
+ProcBar		equ	00501000h
+ProcPagingDemo	equ	00301000h
 
 [section .data32]
 align 32
@@ -60,6 +68,7 @@ align 32
 		_dwType:		dd	0
 	
 	_MemChkBuf	times	256	db	0
+	_dwPageTlbNumber	dd	0
 	
 	;保护模式下使用的符号
 	szPMMessage		equ	_PMMessage - $$
@@ -77,6 +86,7 @@ align 32
 	   dwLengthHigh	equ	_dwLengthHigh	- $$
 	   dwType		equ	_dwType	- $$
 	MemChkBuf		equ	_MemChkBuf	- $$
+	dwPageTlbNumber	equ	_dwPageTlbNumber - $$
 	
 	
 	
@@ -245,8 +255,8 @@ LABLE_CODE32_BEGIN:
 	
 	
 	call DispMemInfo
-	call SetupPaging					;开启分页机制
-	
+	;call SetupPaging					;开启分页机制
+	call PagingDemo
 	
 	;执行完毕
 	jmp SelectorCode16:0
@@ -267,14 +277,15 @@ SetupPaging:
 	inc eax
 	LABLE_NO_REMAINDER:
 	mov ecx, eax
+	mov [dwPageTlbNumber], eax
 	push ecx
 	
 	;初始化页目录
-	mov ax, SelectorPageDir
+	mov ax, SelectorFlatRW
 	mov es, ax
-	xor edi, edi
+	mov edi, PageDirBase1
 	xor eax, eax
-	add eax, PageTblBase | PG_P | PG_USU | PG_RWW
+	add eax, PageTblBase1 | PG_P | PG_USU | PG_RWW
 	.1:
 	stosd
 	add eax, 4096
@@ -286,9 +297,7 @@ SetupPaging:
 	mul ebx
 	mov ecx, eax
 	
-	mov ax, SelectorPageTbl
-	mov es, ax
-	xor edi, edi
+	mov edi, PageTblBase1
 	xor eax, eax
 	add eax, PG_P | PG_USU | PG_RWW
 	.2:
@@ -297,7 +306,7 @@ SetupPaging:
 	loop .2
 
 	;页目录和页表初始化完毕，然后加载
-	mov eax, PageDirBase					;PageDirBase必须4K对齐
+	mov eax, PageDirBase1					;PageDirBase必须4K对齐
 	mov cr3, eax
 	mov eax,  cr0
 	or  eax, 80000000h
@@ -357,6 +366,127 @@ DispMemInfo:
 	pop ecx
 	pop edi
 	pop esi
+	ret
+	
+;三个过程
+PagingDemoProc:
+	OffsetPagingDemoProc	equ	PagingDemoProc - $$
+	mov eax, LinearAddrDemo
+	call eax
+	retf
+	LenOfPagingDemoAll	equ	$ - PagingDemoProc
+	
+foo:
+	OffsetFoo	equ	foo - $$
+	mov ah, 0Ch		;黑底红字
+	mov al, 'F'
+	mov [gs:((80 * 20 + 0) * 2)], ax
+	mov al, 'o'
+	mov [gs:((80 * 20 + 1) * 2)], ax
+	mov [gs:((80 * 20 + 2) * 2)], ax
+	ret
+	LenOfFoo equ $ - foo
+	
+bar:
+	OffsetBar	equ	bar - $$
+	mov ah, 0Ch		;黑底红字
+	mov al, 'B'
+	mov [gs:((80 * 22 + 0) * 2)], ax
+	mov al, 'a'
+	mov [gs:((80 * 22 + 1) * 2)], ax
+	mov al, 'r'
+	mov [gs:((80 * 22 + 2) * 2)], ax
+	ret
+	LenOfBar equ $ - bar
+;三个过程的定义结束
+
+
+
+;将代码填充到内存地址
+PagingDemo:
+	mov ax, CS				;32位代码段要设置为可读
+	mov ds, ax
+	mov ax, SelectorFlatRW
+	mov es, ax
+	
+	push LenOfFoo
+	push OffsetFoo
+	push ProcFoo
+	call MemCpy
+	add esp, 12
+	
+	push LenOfBar
+	push OffsetBar
+	push ProcBar
+	call MemCpy
+	add esp, 12
+	
+	push LenOfPagingDemoAll
+	push OffsetPagingDemoProc
+	push ProcPagingDemo
+	call MemCpy
+	add esp, 12
+	
+	mov ax, SelectorData32
+	mov ds, ax
+	mov es, ax
+	
+	call SetupPaging
+	call SelectorFlatC:ProcPagingDemo
+	call PSwitch
+	call SelectorFlatC:ProcPagingDemo
+	ret
+	
+;切换页表
+PSwitch:
+	;初始化页目录
+	mov ax, SelectorFlatRW
+	mov es, ax
+	mov edi, PageDirBase2
+	xor eax, eax
+	add eax, PageTblBase2 | PG_P | PG_USU | PG_RWW
+	mov ecx, [dwPageTlbNumber]
+	.1:
+	stosd
+	add eax, 4096
+	loop .1
+	
+	;初始化页表
+	mov eax, [dwPageTlbNumber]
+	mov ebx, 1024
+	mul ebx
+	mov ecx, eax
+	
+	mov edi, PageTblBase2
+	xor eax, eax
+	add eax, PG_P | PG_USU | PG_RWW
+	.2:
+	stosd
+	add eax, 4096
+	loop .2
+	
+	;假设内存大于8M
+	mov eax, LinearAddrDemo
+	shr eax, 22
+	mov ebx, 4096
+	mul ebx
+	mov ecx, eax
+	
+	mov eax, LinearAddrDemo
+	shr eax, 12
+	and eax, 03FFh
+	mov ebx, 4
+	mul ebx
+	add eax, ecx
+	add eax, PageTblBase2
+	mov dword [es:eax], ProcBar |  PG_P | PG_USU | PG_RWW
+	
+	mov eax, PageDirBase2
+	mov cr3, eax
+	jmp short .3
+	.3:
+	nop
+	
 	ret
 	
 	%include "lib.inc"				;不放在这里会出现“offset outside of CS limits”错误
