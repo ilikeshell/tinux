@@ -9,9 +9,14 @@ org 0100h
 jmp	LABLE_DEBUG
 [section .idt]
 LABLE_IDT:
-%rep	255
+%rep	32
 		Gate	SelectorCode32, SpuriousHandler, 0, DA_386IGate
 %endrep
+.20h:		Gate	SelectorCode32, ClockHandler, 0, DA_386IGate
+%rep	95
+		Gate	SelectorCode32, SpuriousHandler, 0, DA_386IGate
+%endrep
+.080h: 	Gate SelectorCode32, UserIntHandler, 0, DA_386IGate
 
 IdtLen equ	$ - LABLE_IDT
 IdtPtr dw	IdtLen - 1				;idt长度
@@ -275,9 +280,10 @@ LABLE_CODE32_BEGIN:
 	
 	
 	;测试中断机制是否正确设置
-	;call Init8259A
-	;int 80h
-	
+	call Init8259A
+	int 80h
+	sti
+	jmp $
 	;执行完毕
 	jmp SelectorCode16:0
 
@@ -569,8 +575,22 @@ _SpuriousHandler:
 SpuriousHandler	equ	_SpuriousHandler - $$
 	mov ah, 0Ch
 	mov al, '!'
-	mov [gs:((80 * 0 + 75) * 2)], al
+	mov [gs:((80 * 0 + 75) * 2)], ax
 	jmp $
+	iretd
+	
+_UserIntHandler:
+UserIntHandler	equ	_UserIntHandler - $$
+	mov ah, 0Ch
+	mov al, 'I'
+	mov [gs:((80 * 0 + 70) * 2)], ax
+	iretd
+	
+_ClockHandler:
+ClockHandler	equ _ClockHandler - $$
+	inc byte [gs:((80 * 0 + 79)*2)]
+	mov al, 20h
+	out 20h, al				;发送EOI
 	iretd
 
 
