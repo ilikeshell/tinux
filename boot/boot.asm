@@ -21,7 +21,147 @@ BS_VolID		dd	0			;卷序列号，共4个字节
 BS_VolLab		db	"Tinux  Boot"		;卷标，必须11个字节
 BS_FileSysType	db	"FAT12   "		;文件系统类型，必须8个字节
 
+;宏、常量、变量、以及字符串定义
+%ifdef _BOOT_DEBUG_
+	BaseOfStack	equ	0100h
+%else
+	BaseOfStack	equ	07C00h
+%endif
+
+BaseOfLoader		equ	09000h			;
+OffsetOfLoader	equ	01000h			;
+RootDirSectors	equ	14			;224 * 32 / 512 = 14
+SectorNoOfRootDir	equ	19			;根目录从19号扇区开始
+
+;变量 
+wRootDirSizeForLoop	dw	RootDirSectors	;循环数
+wSectorNo		dw	0			;要读取的扇区号
+bOdd			db	0			;是基数还是偶数？
+
+;字符串
+LoaderFileName	db	"LOADER  BIN",0	;
+BootMessage		db	"Booting  ",0		;
+Message1		db	"Ready.   ",0		;
+Message2		db	"NO LOADER",0		;
+MessageLen		equ	9
+
+
 LABLE_START:
+	mov ax, cs
+	mov ds, ax
+	mov es, ax
+	mov ss, ax
+	mov sp, BaseOfStack
+	
+	xor ax, ax
+	xor dx, dx
+	int 13h					; 软驱复位
+	
+	;在软盘的根目录下寻找LOADER.BIN
+	mov word [wSectorNo], SectorNoOfRootDir	;从19号扇区开始读
+LABLE_SEARCH_IN_ROOT_DIR_BEGIN:
+	cmp word [wRootDirSizeForLoop], 0
+	jz LABLE_NO_LOADERBIN
+	dec word [wRootDirSizeForLoop]
+	
+	;es:bx指向数据缓冲区
+	mov ax, BaseOfLoader
+	mov es, ax
+	mov bx, OffsetOfLoader
+	;读取一个扇区
+	mov ax, [wSectorNo]
+	mov cl, 1
+	call ReadSector
+	jmp $
+	
+	;对读取的扇区进行处理
+	mov si, LoaderFileName
+	mov di, OffsetOfLoader
+	
+	cld
+	mov dx, 16					;一个扇区共16个条目
+	LABLE_SEARCH_FOR_LOADERBIN:
+	cmp dx, 0
+	jz LABLE_GOTO_NEXT_SECTOR_IN_ROOT_DIR
+	dec dx
+	mov cx, 11
+	LABLE_CMP_FILENAME:
+	cmp cx, 0
+	jz LABLE_LOADERBIN_FOUND
+	dec cx
+	lodsb
+	cmp al, [ds:si]
+	jz LABLE_GO_ON
+	jmp LABLE_FILE_NAME_DIFF
+	
+	
+LABLE_GO_ON:
+	inc di 
+	jmp LABLE_CMP_FILENAME
+LABLE_FILE_NAME_DIFF:
+	and di, 0FFE0h				;di指向当前条目的开始
+	add di, 32					;di指向下一个条目
+	mov si, OffsetOfLoader
+	jmp LABLE_SEARCH_FOR_LOADERBIN
+	
+LABLE_GOTO_NEXT_SECTOR_IN_ROOT_DIR:
+	jmp LABLE_SEARCH_IN_ROOT_DIR_BEGIN
 
+LABLE_NO_LOADERBIN:
+	mov dh, 2
+	call DispStr
+	jmp $
+LABLE_LOADERBIN_FOUND:
+	jmp $
 
+;ReadSector的功能：把从第AX个扇区开始，将CL个扇区读入数据缓冲区
+;利用BIOS 13h读取扇区
+;说明：ah=00h, dl=DriveNum, int 13h 复位软驱
+;     ah=02h, ch=柱面号, dh=磁头号，cl=起始扇区号， dl=驱动器号， al=要读取的扇区数， es:bx数据缓冲区
 ReadSector:
+	push bp
+	mov bp, sp
+	sub sp, 2
+	mov byte [bp - 2], cl
+	
+	push bx
+	mov bl, [BPB_SecPerTrk]
+	div bl
+	mov cl, ah
+	inc cl						;获得起始扇区号
+	pop bx
+	
+	mov dh, al
+	and dh, 01b					;获得磁头号
+	
+	shr al, 1					;
+	mov ch, al					;获得柱面号
+	
+	;所有参数信息已经全部获取
+	mov dl, [BS_DrvNum]				;获取驱动器号
+	GO_ON_READING:
+	mov al, byte [bp - 2]			;获取要读取的扇区个数
+	mov ah, 02h
+	int 13h
+	jc GO_ON_READING
+	
+	add sp, 2
+	pop bp
+	ret
+
+;显示一个字符串，dh为要显示的字符串序号
+DispStr:	
+	mov ax, MessageLen
+	mul dh
+	add ax, BootMessage
+	mov bp, ax	;--|
+	mov ax, ds	;  |--- es:bp 串地址
+	mov es, ax	;--|
+	
+	mov cx, MessageLen;         串长
+	
+	mov ax, 01301h				;
+	mov bx, 0007h					;bh=页号， bl=07（黑底白字）
+	mov dl, 0
+	int 10h
+	ret
