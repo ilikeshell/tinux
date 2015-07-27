@@ -1,3 +1,9 @@
+%define _BOOT_DEBUG_
+%ifdef	_BOOT_DEBUG_
+	org 0100h
+%else	
+	org 07C00h
+%endif
 ;FAT12磁盘头
 jmp LABLE_START					;跳转指令
 nop							;必不可少
@@ -43,7 +49,7 @@ LoaderFileName	db	"LOADER  BIN",0	;
 BootMessage		db	"Booting  ",0		;
 Message1		db	"Ready.   ",0		;
 Message2		db	"NO LOADER",0		;
-MessageLen		equ	9
+MessageLen		equ	10
 
 
 LABLE_START:
@@ -60,7 +66,7 @@ LABLE_START:
 	;在软盘的根目录下寻找LOADER.BIN
 	mov word [wSectorNo], SectorNoOfRootDir	;从19号扇区开始读
 LABLE_SEARCH_IN_ROOT_DIR_BEGIN:
-	cmp word [wRootDirSizeForLoop], 0
+	cmp word [wRootDirSizeForLoop], 0		;根目录最多为14个扇区
 	jz LABLE_NO_LOADERBIN
 	dec word [wRootDirSizeForLoop]
 	
@@ -72,11 +78,11 @@ LABLE_SEARCH_IN_ROOT_DIR_BEGIN:
 	mov ax, [wSectorNo]
 	mov cl, 1
 	call ReadSector
-	jmp $
+	inc word [wSectorNo]
 	
 	;对读取的扇区进行处理
-	mov si, LoaderFileName
-	mov di, OffsetOfLoader
+	mov si, LoaderFileName			;ds:si------> "LOADER  BIN"
+	mov di, OffsetOfLoader			;es:di------> BaseOfLoader:0100h
 	
 	cld
 	mov dx, 16					;一个扇区共16个条目
@@ -90,7 +96,8 @@ LABLE_SEARCH_IN_ROOT_DIR_BEGIN:
 	jz LABLE_LOADERBIN_FOUND
 	dec cx
 	lodsb
-	cmp al, [ds:si]
+	mov ah, byte [es:di]
+	cmp al, ah
 	jz LABLE_GO_ON
 	jmp LABLE_FILE_NAME_DIFF
 	
@@ -110,7 +117,13 @@ LABLE_GOTO_NEXT_SECTOR_IN_ROOT_DIR:
 LABLE_NO_LOADERBIN:
 	mov dh, 2
 	call DispStr
+%ifdef	_BOOT_DEBUG_
+	mov ax, 4C00h
+	int 21h
+%else	
 	jmp $
+%endif
+	
 LABLE_LOADERBIN_FOUND:
 	jmp $
 
@@ -125,7 +138,7 @@ ReadSector:
 	mov byte [bp - 2], cl
 	
 	push bx
-	mov bl, [BPB_SecPerTrk]
+	mov bl, byte [BPB_SecPerTrk]
 	div bl
 	mov cl, ah
 	inc cl						;获得起始扇区号
@@ -165,3 +178,8 @@ DispStr:
 	mov dl, 0
 	int 10h
 	ret
+
+%ifndef _BOOT_DEBUG_
+	times 510 - ($ - $$)	db 0
+	dw 0xaa55
+%endif
