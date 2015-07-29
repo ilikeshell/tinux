@@ -1,4 +1,4 @@
-%define _BOOT_DEBUG_
+;%define _BOOT_DEBUG_
 %ifdef	_BOOT_DEBUG_
 	org 0100h
 %else	
@@ -78,7 +78,7 @@ LABLE_SEARCH_IN_ROOT_DIR_BEGIN:
 	mov ax, [wSectorNo]
 	mov cl, 1
 	call ReadSector
-	inc word [wSectorNo]
+	
 	
 	;对读取的扇区进行处理
 	mov si, LoaderFileName			;ds:si------> "LOADER  BIN"
@@ -112,6 +112,7 @@ LABLE_FILE_NAME_DIFF:
 	jmp LABLE_SEARCH_FOR_LOADERBIN
 	
 LABLE_GOTO_NEXT_SECTOR_IN_ROOT_DIR:
+	inc word [wSectorNo]				;指向下一个扇区
 	jmp LABLE_SEARCH_IN_ROOT_DIR_BEGIN
 
 LABLE_NO_LOADERBIN:
@@ -125,6 +126,8 @@ LABLE_NO_LOADERBIN:
 %endif
 	
 LABLE_LOADERBIN_FOUND:
+	mov dh, 0
+	call DispStr
 	jmp $
 
 ;ReadSector的功能：把从第AX个扇区开始，将CL个扇区读入数据缓冲区
