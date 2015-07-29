@@ -1,12 +1,14 @@
-;%define _BOOT_DEBUG_
+;%define	_BOOT_DEBUG_	; 做 Boot Sector 时一定将此行注释掉!将此行打开后用 nasm Boot.asm -o Boot.com 做成一个.COM文件易于调试
+
 %ifdef	_BOOT_DEBUG_
-	org 0100h
-%else	
-	org 07C00h
+	org  0100h			; 调试状态, 做成 .COM 文件, 可调试
+%else
+	org  07c00h			; Boot 状态, Bios 将把 Boot Sector 加载到 0:7C00 处并开始执行
 %endif
-;FAT12磁盘头
+
+	;FAT12磁盘头
 jmp LABLE_START					;跳转指令
-nop							;必不可少
+;nop							;必不可少
 BS_OEMName		db	"ForrestY"		;OEM厂商名，共8个字节
 BPB_BytesPerSec	dw 	512			;每扇区字节数，共2个字节
 BPB_SecPerClus	db	1			;每个簇的扇区数，共1个字节
@@ -14,7 +16,7 @@ BPB_RsvdSecCnt	dw	1			;boot记录占用多少扇区，共2个字节
 BPB_NumFATs		db	2			;共有多少个FAT表，共1个字节
 BPB_RootEntCnt	dw	224			;根目录文件数最大值，共2个字节
 BPB_TotSec16		dw	2880			;逻辑扇区总数，共2个字节
-BPB_Media		db	0xF0			;介质描述符，共1个字节
+BPB_Media		db	0F0h			;介质描述符，共1个字节
 BPB_FATSz16		dw	9			;每个FAT表所占用的扇区数，共2个字节
 BPB_SecPerTrk		dw	18			;每个磁道扇区数，共2个字节
 BPB_NumHeads		dw	2			;磁头数，共2个字节
@@ -22,10 +24,12 @@ BPB_HiddSec		dd	0			;隐藏扇区数，共4个字节
 BPB_TotSec32		dd	0			;如果BPB_TotSec16为0，则由该值记录扇区数，共4个字节
 BS_DrvNum		db	0			;中断13的驱动器号，共1个字节
 BS_Reserved1		db	0			;未使用，共1个字节
-BS_BootSig		db	0x29			;扩展引导标记，共1个字节
+BS_BootSig		db	29h			;扩展引导标记，共1个字节
 BS_VolID		dd	0			;卷序列号，共4个字节
 BS_VolLab		db	"Tinux  Boot"		;卷标，必须11个字节
 BS_FileSysType	db	"FAT12   "		;文件系统类型，必须8个字节
+
+
 
 ;宏、常量、变量、以及字符串定义
 %ifdef _BOOT_DEBUG_
@@ -35,11 +39,11 @@ BS_FileSysType	db	"FAT12   "		;文件系统类型，必须8个字节
 %endif
 
 BaseOfLoader		equ	09000h			;
-OffsetOfLoader	equ	01000h			;
+OffsetOfLoader	equ	0100h			;
 RootDirSectors	equ	14			;224 * 32 / 512 = 14
 SectorNoOfRootDir	equ	19			;根目录从19号扇区开始
 
-;变量 
+;变量 
 wRootDirSizeForLoop	dw	RootDirSectors	;循环数
 wSectorNo		dw	0			;要读取的扇区号
 bOdd			db	0			;是基数还是偶数？
@@ -61,7 +65,7 @@ LABLE_START:
 	
 	xor ax, ax
 	xor dx, dx
-	int 13h					; 软驱复位
+	int 13h					; 软驱复位
 	
 	;在软盘的根目录下寻找LOADER.BIN
 	mov word [wSectorNo], SectorNoOfRootDir	;从19号扇区开始读
@@ -108,7 +112,7 @@ LABLE_GO_ON:
 LABLE_FILE_NAME_DIFF:
 	and di, 0FFE0h				;di指向当前条目的开始
 	add di, 32					;di指向下一个条目
-	mov si, OffsetOfLoader
+	mov si, LoaderFileName
 	jmp LABLE_SEARCH_FOR_LOADERBIN
 	
 LABLE_GOTO_NEXT_SECTOR_IN_ROOT_DIR:
@@ -126,8 +130,8 @@ LABLE_NO_LOADERBIN:
 %endif
 	
 LABLE_LOADERBIN_FOUND:
-	mov dh, 0
-	call DispStr
+	;mov dh, 0
+	;call DispStr
 	jmp $
 
 ;ReadSector的功能：把从第AX个扇区开始，将CL个扇区读入数据缓冲区
@@ -182,7 +186,6 @@ DispStr:
 	int 10h
 	ret
 
-%ifndef _BOOT_DEBUG_
+
 	times 510 - ($ - $$)	db 0
-	dw 0xaa55
-%endif
+	dw 0xAA55
