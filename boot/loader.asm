@@ -4,5 +4,5 @@ org	0100h
 	mov ah, 0Fh
 	mov al, 'L'
 	mov [gs:((80 * 0 + 39) * 2)], ax
-	
+	times 1024 nop
 	jmp $

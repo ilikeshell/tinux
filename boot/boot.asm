@@ -6,8 +6,8 @@
 	org  07c00h			; Boot 状态, Bios 将把 Boot Sector 加载到 0:7C00 处并开始执行
 %endif
 
-	;FAT12磁盘头
-jmp LABLE_START					;跳转指令
+;FAT12磁盘头
+jmp LABLE_START					;跳转指令，编译成3字节的指令，若jmp short LABLE_START,编译成2字节指令
 ;nop							;必不可少
 BS_OEMName		db	"ForrestY"		;OEM厂商名，共8个字节
 BPB_BytesPerSec	dw 	512			;每扇区字节数，共2个字节
@@ -42,6 +42,8 @@ BaseOfLoader		equ	09000h			;
 OffsetOfLoader	equ	0100h			;
 RootDirSectors	equ	14			;224 * 32 / 512 = 14
 SectorNoOfRootDir	equ	19			;根目录从19号扇区开始
+OffsetFatTblSec	equ	1			;Fat表从1号扇区开始
+OffsetDataSec		equ	RootDirSectors + SectorNoOfRootDir - 2
 
 ;变量 
 wRootDirSizeForLoop	dw	RootDirSectors	;循环数
@@ -130,9 +132,55 @@ LABLE_NO_LOADERBIN:
 %endif
 	
 LABLE_LOADERBIN_FOUND:
-	;mov dh, 0
-	;call DispStr
-	jmp $
+	;清屏
+	mov ax, 0600h
+	mov bx, 0700h
+	mov cx, 0
+	mov dx, 0184Fh
+	int 10h
+	
+	mov dh, 0
+	call DispStr
+
+	
+	and di, 0FFE0h
+	add di, 01Ah					;指向第一个簇号
+	mov ax, [es:di]				;读入第一个簇号
+	push ax					;保存簇号
+	add ax, OffsetDataSec			;获取文件第一个扇区的编号
+	mov cx, ax
+	
+	mov ax, BaseOfLoader
+	mov es, ax
+	mov bx, OffsetOfLoader			;es:bx----->fat表
+	
+	mov ax, cx
+	LABLE_GO_ON_LOADING_FILE:
+	;每读取一个扇区，打一个“.”
+	push ax 
+	push bx	
+	mov ah, 0Eh
+	mov al, '.'
+	mov bl, 0Fh
+	int 10h	
+	pop bx
+	pop ax
+	
+	mov cl, 1
+	call ReadSector
+	pop ax
+	call GetFatEntry
+	cmp ax, 0FFFh
+	jz LABLE_FILE_LOADED
+	push ax 
+	add ax, OffsetDataSec			;计算文件的下一个扇区编号
+	add bx, [BPB_BytesPerSec]			;bx+512
+	jmp LABLE_GO_ON_LOADING_FILE
+	
+LABLE_FILE_LOADED:
+	mov dh, 1
+	call DispStr
+	jmp BaseOfLoader:OffsetOfLoader
 
 ;ReadSector的功能：把从第AX个扇区开始，将CL个扇区读入数据缓冲区
 ;利用BIOS 13h读取扇区
@@ -171,6 +219,8 @@ ReadSector:
 
 ;显示一个字符串，dh为要显示的字符串序号
 DispStr:	
+	push es
+	
 	mov ax, MessageLen
 	mul dh
 	add ax, BootMessage
@@ -184,6 +234,57 @@ DispStr:
 	mov bx, 0007h					;bh=页号， bl=07（黑底白字）
 	mov dl, 0
 	int 10h
+	
+	pop es
+	ret
+	
+
+;输入：文件在数据区的扇区编号（从2开始）；返回：文件在数据区的下一个扇区编号
+GetFatEntry:
+	push es
+	push bx
+	push dx
+
+	;开辟一段内存空间用于保存Fat表
+	push ax
+	mov ax, BaseOfLoader
+	sub ax, 0100h
+	mov es, ax
+	pop ax
+	
+	;获取ax代表的扇区编号在Fat表中的字节偏移量
+	xor dx, dx
+	mov bx, 3
+	mul bx
+	mov bx, 2
+	div bx
+	
+	;判断是奇数还是偶数
+	cmp dx, 0
+	jz .LABLE_EVEN
+	mov byte [bOdd], 1				;保存奇偶标志
+	.LABLE_EVEN:
+	mov bx, [BPB_BytesPerSec]
+	div bx 					;ax存放FAT项所在的扇区偏移
+	add ax, OffsetFatTblSec			;ax存放FAT项所在的扇区序号
+	push dx					;保存余数，即在扇区内的偏移量
+	mov cl, 2
+	mov bx, 0					;es:bx指向fat表
+	call ReadSector
+	pop dx
+	add bx, dx
+	mov ax, [es:bx]
+	cmp byte [bOdd], 0
+	jz .LABLE_EVEN1
+	shr ax, 4
+	.LABLE_EVEN1:
+	and ax, 0FFFh
+	
+	pop dx
+	pop bx
+	pop es
+	
+	
 	ret
 
 
