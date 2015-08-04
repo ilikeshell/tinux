@@ -4,9 +4,29 @@ BaseOfStack	equ	0100h
 
 BaseOfKernel		equ	08000h	;kernel.bin被加载的段地址
 OffsetOfKernel	equ	0h	;kernel.bin被加载的段偏移
+BaseOfLoader		equ	09000h ;Loader.bin被加载的段地址
+OffsetOfLoader	equ	0100h	;Loader.bin被加载的段偏移
+
+BaseOfLoaderPhyAddr	equ	BaseOfLoader * 10h
 
 jmp LABLE_START
 %include "fat12hdr.inc"
+%include "pm.inc"
+
+[section .gdt]
+LABLE_GDT:		Descriptor	0,		0,		0;
+LABLE_DESC_FLAT_C:	Descriptor	0,		0FFFFFh,	DA_32 | DA_C | DA_LIMIT_4K;
+LABLE_DESC_FLAT_RW:	Descriptor	0,		0FFFFFh,	DA_DRW | DA_32 | DA_LIMIT_4K;
+LABLE_DESC_VIDEO:	Descriptor	0B8000h,	0FFFFh,	DA_DRW | DA_DPL3;
+
+GdtLen	equ $ - LABLE_GDT 
+GdtPtr	dw GdtLen - 1
+	dd BaseOfLoaderPhyAddr + LABLE_GDT
+	
+;选择子
+SelectorFlatC	equ LABLE_DESC_FLAT_C - LABLE_GDT
+SelectorFlatRW equ LABLE_DESC_FLAT_RW - LABLE_GDT
+SelectorVideo	equ LABLE_DESC_VIDEO - LABLE_GDT + SA_RPL3
 
 ;变量 
 wRootDirSizeForLoop	dw	RootDirSectors	;循环数
@@ -20,6 +40,11 @@ KernelMessage		db	"Loading  ",0		;
 Message1		db	"Ready.   ",0		;
 Message2		db	"NO KERNEL",0		;
 MessageLen		equ	10
+
+;栈空间
+times 1024 db 0
+TopOfStack equ BaseOfLoaderPhyAddr + $
+
 
 LABLE_START:
 	mov ax, cs
@@ -137,7 +162,21 @@ LABLE_FILE_LOADED:
 	mov dh, 1
 	call DispStr
 	
-	jmp $
+	
+	;加载GDT
+	lgdt [GdtPtr]
+	
+	;打开A20
+	in al, 092h
+	or al, 010b
+	out 092h, al 
+	
+	;准备进入保护模式
+	mov eax, cr0
+	or eax, 1
+	mov cr0, eax
+	
+	jmp dword SelectorFlatC:(BaseOfLoaderPhyAddr + LABLE_PM_START)
 	
 	
 	
@@ -271,4 +310,24 @@ KillMotor:
 	out dx, al
 	pop dx
 	ret
+	
+[section .s32]
+ALIGN 32
+[bits 32]
+LABLE_PM_START:
+	mov ax, SelectorVideo
+	mov gs, ax
+	mov ax, SelectorFlatC
+	mov cs, ax
+	mov ax, SelectorFlatRW
+	mov ds, ax 
+	mov es, ax
+	mov fs, ax
+	mov ss, ax 
+	mov esp, TopOfStack
+	
+	mov ah, 0Fh
+	mov al, 'P'
+	mov [gs:((80 * 0 + 39) * 2)]
+	jmp $
 
