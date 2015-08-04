@@ -7,8 +7,8 @@
 %endif
 
 ;FAT12磁盘头
-jmp short LABLE_START					;跳转指令，编译成3字节的指令，若jmp short LABLE_START,编译成2字节指令
-nop							;必不可少
+jmp LABLE_START					;跳转指令，编译成3字节的指令，若jmp short LABLE_START,编译成2字节指令
+;nop							;必不可少
 BS_OEMName		db	"ForrestY"		;OEM厂商名，共8个字节
 BPB_BytesPerSec	dw 	512			;每扇区字节数，共2个字节
 BPB_SecPerClus	db	1			;每个簇的扇区数，共1个字节
@@ -168,7 +168,7 @@ LABLE_LOADERBIN_FOUND:
 	
 	mov cl, 1
 	call ReadSector
-	pop ax
+	pop ax						;获取簇号
 	call GetFatEntry
 	cmp ax, 0FFFh
 	jz LABLE_FILE_LOADED
@@ -253,6 +253,7 @@ GetFatEntry:
 	pop ax
 	
 	;获取ax代表的扇区编号在Fat表中的字节偏移量
+	mov byte [bOdd], 0				;初始化奇偶标志
 	xor dx, dx
 	mov bx, 3
 	mul bx
@@ -264,6 +265,7 @@ GetFatEntry:
 	jz .LABLE_EVEN
 	mov byte [bOdd], 1				;保存奇偶标志
 	.LABLE_EVEN:
+	xor dx, dx					;字除法DX需清零
 	mov bx, [BPB_BytesPerSec]
 	div bx 					;ax存放FAT项所在的扇区偏移
 	add ax, OffsetFatTblSec			;ax存放FAT项所在的扇区序号
