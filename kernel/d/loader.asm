@@ -328,6 +328,6 @@ LABLE_PM_START:
 	
 	mov ah, 0Fh
 	mov al, 'P'
-	mov [gs:((80 * 0 + 39) * 2)]
+	mov [gs:((80 * 0 + 39) * 2)], ax 
 	jmp $
 
