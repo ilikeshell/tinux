@@ -9,6 +9,9 @@ OffsetOfLoader	equ	0100h	;Loader.bin被加载的段偏移
 
 BaseOfLoaderPhyAddr	equ	BaseOfLoader * 10h
 
+PageDirBase		equ	100000h				;页目录基址
+PageTblBase		equ	101000h				;页表基址
+
 jmp LABLE_START
 %include "fat12hdr.inc"
 %include "pm.inc"
@@ -58,7 +61,7 @@ LABLE_START:
 	int 13h					; 软驱复位
 	
 	mov dh, 0
-	call DispStr					;显示“Loading  ”
+	call DispStrRealMode					;显示“Loading  ”
 	
 	;在软盘的根目录下寻找KERNEL.BIN
 	mov word [wSectorNo], SectorNoOfRootDir	;从19号扇区开始读
@@ -114,7 +117,7 @@ LABLE_GOTO_NEXT_SECTOR_IN_ROOT_DIR:
 
 LABLE_NO_KERNELBIN:
 	mov dh, 2
-	call DispStr
+	call DispStrRealMode
 %ifdef	_BOOT_DEBUG_
 	mov ax, 4C00h
 	int 21h
@@ -134,7 +137,7 @@ LABLE_KERNELBIN_FOUND:
 	add di, 01Ah					;指向第一个簇号
 	mov ax, [es:di]				;读入第一个簇号
 	push ax					;保存簇号
-	add ax, OffsetDataSec				;获取文件第一个扇区的编号
+	add ax, OffsetDataSec			;获取文件第一个扇区的编号
 	mov cx, ax
 	
 	mov ax, BaseOfKernel
@@ -160,7 +163,10 @@ LABLE_KERNELBIN_FOUND:
 LABLE_FILE_LOADED:
 	call KillMotor
 	mov dh, 1
-	call DispStr
+	call DispStrRealMode
+	
+	;实模式下获取系统内存信息
+	call GetSysMem
 	
 	
 	;加载GDT
@@ -170,6 +176,7 @@ LABLE_FILE_LOADED:
 	in al, 092h
 	or al, 010b
 	out 092h, al 
+	
 	
 	;准备进入保护模式
 	mov eax, cr0
@@ -216,7 +223,7 @@ ReadSector:
 	ret
 
 ;显示一个字符串，dh为要显示的字符串序号
-DispStr:	
+DispStrRealMode:	
 	push es
 	
 	mov ax, MessageLen
@@ -317,8 +324,6 @@ ALIGN 32
 LABLE_PM_START:
 	mov ax, SelectorVideo
 	mov gs, ax
-	mov ax, SelectorFlatC
-	mov cs, ax
 	mov ax, SelectorFlatRW
 	mov ds, ax 
 	mov es, ax
@@ -329,5 +334,189 @@ LABLE_PM_START:
 	mov ah, 0Fh
 	mov al, 'P'
 	mov [gs:((80 * 0 + 39) * 2)], ax 
+	
+	;jmp $
+	
+	push szMemChkTitle
+	call DispStr
+	add esp, 4
+	
+	
+	
+	call DispMemInfo
+	call SetupPaging					;开启分页机制
+	
 	jmp $
+	
+	%include "lib.inc"
+	
+[section .data32]
+align 32
+[bits 32]
+	LABLE_DATA32_BEGIN:
+	;string
+	_SetupPagingMsg:	db 	"Setup pageing succsessful!",0Ah,0Ah,0
+	_szMemChkTitle:	db	"BaseAddrL BaseAddrH LengthLow Lengthhigh   Type",0Ah,0
+	_szRamSize		db	"Ram Size:",0
+	_szReturn		db	0Ah,0
+	;var
+	_dwDispPos		dd	(80 * 6 + 0) * 2
+	_dwMCRNumber		dd	0
+	_dwMemSize		dd	0
+	_ARDStruct:
+		_dwBaseAddrLow:	dd	0
+		_dwBaseAddrHigh:	dd	0
+		_dwLengthLow:		dd	0
+		_dwLengthHigh:	dd	0
+		_dwType:		dd	0
+	
+	_MemChkBuf	times	256	db	0
+	
+	;保护模式下使用的符号
+	szPagingMsg:		equ	BaseOfLoaderPhyAddr + _SetupPagingMsg
+	szMemChkTitle		equ	BaseOfLoaderPhyAddr + _szMemChkTitle
+	szRAMSize		equ	BaseOfLoaderPhyAddr + _szRamSize
+	szReturn		equ	BaseOfLoaderPhyAddr + _szReturn
+	dwDispPos		equ	BaseOfLoaderPhyAddr + _dwDispPos
+	dwMemSize		equ	BaseOfLoaderPhyAddr + _dwMemSize
+	dwMCRNumber		equ	BaseOfLoaderPhyAddr + _dwMCRNumber
+	ARDStruct		equ	BaseOfLoaderPhyAddr + _ARDStruct
+	   dwBaseAddrLow	equ	BaseOfLoaderPhyAddr + _dwBaseAddrLow
+	   dwBaseAddrHigh	equ	BaseOfLoaderPhyAddr + _dwBaseAddrHigh
+	   dwLengthLow	equ	BaseOfLoaderPhyAddr + _dwLengthLow
+	   dwLengthHigh	equ	BaseOfLoaderPhyAddr + _dwLengthHigh	
+	   dwType		equ	BaseOfLoaderPhyAddr + _dwType
+	MemChkBuf		equ	BaseOfLoaderPhyAddr + _MemChkBuf
+	
+	DataLen		equ	$ - $$				; $ - $$ = $ - LABEL_DATA ? m
+; end of [section .data32]
 
+
+;实模式下调用
+;通过int15h中断获取内存信息，输入：eax=0E820h, ebx(后序值), es:di(指向一个ARDS),ecx(填充的字节)，edx="SAMP"(0534D4150h)
+	;			       输出：CF=0（正确，否则存在错误，终止程序），eax="SAMP"，es:di，ecx，ebx(后序值)
+
+GetSysMem:
+	mov ebx, 0
+	mov ax, CS
+	mov es, ax
+	mov di, _MemChkBuf
+	.loop:
+	mov eax, 0E820h
+	mov ecx, 20
+	mov edx, 0534D4150h
+	int 15h
+	jc LABEL_GET_MEM_INFO_FAILED
+	inc dword [_dwMCRNumber];				;记录内存块数
+	add di, 20
+	cmp ebx, 0
+	jnz .loop
+	jmp LABEL_GET_MEM_INFO_OK
+LABEL_GET_MEM_INFO_FAILED:
+	mov dword [_dwMCRNumber], 0
+LABEL_GET_MEM_INFO_OK:
+	ret
+
+
+;在保护模式下显示内存信息
+DispMemInfo:
+	push esi
+	push edi
+	push ecx
+	
+	mov esi, MemChkBuf
+	mov ecx, [dwMCRNumber]
+.loop:
+	mov edx, 5
+	mov edi, ARDStruct
+    .1:
+	push dword [esi]
+	call DispInt
+	pop eax
+	stosd
+	add esi, 4
+	dec edx
+	cmp edx, 0
+	jnz .1
+	call DispReturn
+	cmp dword [dwType], 1
+	jne .2
+	mov eax, [dwBaseAddrLow]
+	add eax, [dwLengthLow]
+	cmp eax, [dwMemSize]
+	jb .2
+	mov [dwMemSize], eax
+    .2:
+	loop .loop
+	
+	call DispReturn
+	push szRAMSize
+	call DispStr
+	add esp, 4
+	
+	push dword [dwMemSize]
+	call DispInt
+	add esp,4
+	
+	pop ecx
+	pop edi
+	pop esi
+	ret
+	
+	
+;开启分页机制
+SetupPaging:
+	;计算需要多少个页表目录
+	xor edx, edx
+	mov eax, [dwMemSize]
+	mov ebx, 400000h						;一个页表可以映射4M的内存
+	div ebx
+	test edx, edx
+	jz LABLE_NO_REMAINDER
+	inc eax
+	LABLE_NO_REMAINDER:
+	mov ecx, eax
+	push ecx
+	
+	;初始化页目录
+	mov ax, SelectorFlatRW
+	mov es, ax
+	mov edi, PageDirBase
+	xor eax, eax
+	add eax, PageTblBase | PG_P | PG_USU | PG_RWW
+	.1:
+	stosd
+	add eax, 4096
+	loop .1
+	
+	;初始化页表
+	pop eax
+	mov ebx, 1024
+	mul ebx
+	mov ecx, eax
+	
+	mov edi, PageTblBase
+	xor eax, eax
+	add eax, PG_P | PG_USU | PG_RWW
+	.2:
+	stosd
+	add eax, 4096
+	loop .2
+
+	;页目录和页表初始化完毕，然后加载
+	mov eax, PageDirBase					;PageDirBase必须4K对齐
+	mov cr3, eax
+	mov eax,  cr0
+	or  eax, 80000000h
+	mov cr0, eax
+	jmp short .end					;为什么加short
+.end:	
+	nop
+	
+	;显示分页成功字符串
+	call DispReturn
+	call DispReturn
+	push szPagingMsg
+	call DispStr
+	add esp, 4
+	ret
