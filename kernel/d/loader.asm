@@ -346,6 +346,10 @@ LABLE_PM_START:
 	call DispMemInfo
 	call SetupPaging					;开启分页机制
 	
+	push 
+	
+	call MemCpy
+	
 	jmp $
 	
 	%include "lib.inc"
