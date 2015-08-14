@@ -7,4 +7,3 @@ _start:
 	mov al, 'K'
 	mov [gs:((80 * 22 + 39) * 2)], ax
 	jmp $
-	times 1024 nop

@@ -7,8 +7,8 @@
 %endif
 
 ;FAT12磁盘头
-jmp LABLE_START					;跳转指令，编译成3字节的指令，若jmp short LABLE_START,编译成2字节指令
-;nop							;必不可少
+jmp short LABLE_START					;跳转指令，编译成3字节的指令，若jmp short LABLE_START,编译成2字节指令
+nop							;必不可少
 BS_OEMName		db	"ForrestY"		;OEM厂商名，共8个字节
 BPB_BytesPerSec	dw 	512			;每扇区字节数，共2个字节
 BPB_SecPerClus	db	1			;每个簇的扇区数，共1个字节

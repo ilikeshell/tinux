@@ -10,6 +10,8 @@ OffsetOfLoader		equ	0100h	;Loader.bin被加载的段偏移
 BaseOfLoaderPhyAddr	equ	BaseOfLoader * 10h
 BaseOfKernelPhyAddr	equ	BaseOfKernel * 10h
 
+KernelEntryPointPhyAddr equ	30400h
+
 PageDirBase		equ	100000h				;页目录基址
 PageTblBase		equ	101000h				;页表基址
 
@@ -346,12 +348,9 @@ LABLE_PM_START:
 	
 	call DispMemInfo
 	call SetupPaging					;开启分页机制
+	call InitKernel
 	
-	push 
-	
-	call MemCpy
-	
-	jmp $
+	jmp SelectorFlatC:KernelEntryPointPhyAddr
 	
 	%include "lib.inc"
 	
@@ -527,3 +526,29 @@ SetupPaging:
 	ret
 	
 ;初始化内核
+InitKernel:
+	;获取循环的次数
+	mov cx, [BaseOfKernelPhyAddr + 02Ch]
+	and ecx, 0FFFFh
+	
+	;ESI指向第一个程序头表项
+	mov esi, [BaseOfKernelPhyAddr + 01Eh]
+	add esi, BaseOfKernelPhyAddr				;不要忘记
+	Begin:
+	mov eax, [esi + 0]
+	cmp eax, 0
+	jnz NoAction
+	mov eax, [esi + 10h]
+	push eax
+	mov eax, [esi + 04h]
+	add eax, BaseOfKernelPhyAddr
+	push eax
+	mov eax, [esi + 8]
+	push eax
+	call MemCpy
+	add esp, 12						;由调用者清栈
+	NoAction:
+	add esi, 20h
+	dec ecx
+	jnz Begin
+	ret
