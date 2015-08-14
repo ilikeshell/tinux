@@ -3,11 +3,12 @@ org 0100h
 BaseOfStack	equ	0100h
 
 BaseOfKernel		equ	08000h	;kernel.bin被加载的段地址
-OffsetOfKernel	equ	0h	;kernel.bin被加载的段偏移
-BaseOfLoader		equ	09000h ;Loader.bin被加载的段地址
-OffsetOfLoader	equ	0100h	;Loader.bin被加载的段偏移
+OffsetOfKernel		equ	0h	;kernel.bin被加载的段偏移
+BaseOfLoader		equ	09000h	;Loader.bin被加载的段地址
+OffsetOfLoader		equ	0100h	;Loader.bin被加载的段偏移
 
 BaseOfLoaderPhyAddr	equ	BaseOfLoader * 10h
+BaseOfKernelPhyAddr	equ	BaseOfKernel * 10h
 
 PageDirBase		equ	100000h				;页目录基址
 PageTblBase		equ	101000h				;页表基址
@@ -20,7 +21,7 @@ jmp LABLE_START
 LABLE_GDT:		Descriptor	0,		0,		0;
 LABLE_DESC_FLAT_C:	Descriptor	0,		0FFFFFh,	DA_32 | DA_C | DA_LIMIT_4K;
 LABLE_DESC_FLAT_RW:	Descriptor	0,		0FFFFFh,	DA_DRW | DA_32 | DA_LIMIT_4K;
-LABLE_DESC_VIDEO:	Descriptor	0B8000h,	0FFFFh,	DA_DRW | DA_DPL3;
+LABLE_DESC_VIDEO:	Descriptor	0B8000h,	0FFFFh,		DA_DRW | DA_DPL3;
 
 GdtLen	equ $ - LABLE_GDT 
 GdtPtr	dw GdtLen - 1
@@ -38,7 +39,7 @@ bOdd			db	0			;是基数还是偶数？
 dwKernelSize		dd	0			;内核大小
 
 ;字符串
-KernelFileName	db	"KERNEL  BIN",0	;
+KernelFileName		db	"KERNEL  BIN",0	;
 KernelMessage		db	"Loading  ",0		;
 Message1		db	"Ready.   ",0		;
 Message2		db	"NO KERNEL",0		;
@@ -524,3 +525,5 @@ SetupPaging:
 	call DispStr
 	add esp, 4
 	ret
+	
+;初始化内核
