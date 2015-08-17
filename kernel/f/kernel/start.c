@@ -3,7 +3,6 @@
 PUBLIC void* memcpy(void* pDst, void* pSrc, int iSize);
 PUBLIC u8 gdt_ptr[6];
 PUBLIC DESCRIPTOR gdt[GDT_SIZE];
-void DispStr(char* info);
 
 PUBLIC void cstart( )
 {
@@ -17,8 +16,4 @@ PUBLIC void cstart( )
 	u32* p_gdt_base = (u32* )(&gdt_ptr[2]);
 	*p_gdt_limit = GDT_SIZE * sizeof (DESCRIPTOR) - 1;
 	*p_gdt_base = *((u32* )(&gdt[0]));
-	
-	/* 显示字符串 */
-	DispStr("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n   \
-		-----\"cstart\" begin------\n");
 }

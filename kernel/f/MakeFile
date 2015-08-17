@@ -1,0 +1,52 @@
+#Kernel Entry Point and offset
+ENTRYPOINT = 0x30400
+ENTRYOFFSET = 0x400
+
+#program, flags, etc
+ASM		=	nasm
+DASM		=	ndisasm
+CC		=	clang
+LD		=	ld 
+ASMBFLAGS	=	-I boot/include/
+ASMKFLAGS	=	-I include/ -f elf
+CLANGFLAGS	=	-I include/ -c -fno-builtin -target i686-pc-linux-elf
+CFLAGS		=	-I include/ -c -fno-builtin
+LDFLAGS		=	-s -Ttext $(ENTRYPOINT) -m elf_i386
+DASMFLAGS	=	-u -o $(ENTRYPOINT) -e $(ENTRYOFFSET)
+
+#this program
+KERNEL		=	kernel.bin 
+OBJS		=	kernel/kernel.o kernel/start.o lib/klib.o lib/string.o
+DASMOUTPUT	=	kernel.bin.asm
+
+#all phony targets
+.PHONY:everything final image clean realclean disasm all buildimg
+
+#Default starting position
+everything:$(KERNEL)
+all:realclean everything
+final:all clean
+image:final buildimg
+clean:
+	rm -f $(OBJS)
+realclean:
+	rm -f $(OBJS) $(KERNEL)
+disasm:
+	$(DASM) $(DASMFLAGS) $(KERNEL) > $(DASMOUTPUT)
+	
+buildimg:
+	sudo mount -o loop b.img /mnt/floppy
+	sudo cp -fv kernel.bin /mnt/floppy
+	sudo umount /mnt/floppy
+	
+$(KERNEL):$(OBJS)
+	$(LD) $(LDFLAGS) -o $(KERNEL) $(OBJS)
+	
+kernel/kernel.o:kernel/kernel.asm
+	$(ASM) $(ASMKFLAGS) -o $@ $<
+kernel/start.o:kernel/start.c
+	$(CC) $(CLANGFLAGS) -o $@ $<
+lib/string.o:lib/string.asm
+	$(ASM) $(ASMKFLAGS) -o $@ $<
+lib/klib.o:lib/klib.asm
+	$(ASM) $(ASMKFLAGS) -o $@ $<
