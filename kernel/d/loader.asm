@@ -169,7 +169,24 @@ LABLE_FILE_LOADED:
 	call DispStrRealMode
 	
 	;实模式下获取系统内存信息
-	call GetSysMem
+	mov ebx, 0
+	mov ax, CS
+	mov es, ax
+	mov di, _MemChkBuf
+	.loop:
+	mov eax, 0E820h
+	mov ecx, 20
+	mov edx, 0534D4150h
+	int 15h
+	jc LABEL_GET_MEM_INFO_FAILED
+	inc dword [_dwMCRNumber];				;记录内存块数
+	add di, 20
+	cmp ebx, 0
+	jnz .loop
+	jmp LABEL_GET_MEM_INFO_OK
+LABEL_GET_MEM_INFO_FAILED:
+	mov dword [_dwMCRNumber], 0
+LABEL_GET_MEM_INFO_OK:
 	
 	
 	;加载GDT
@@ -348,6 +365,7 @@ LABLE_PM_START:
 	
 	call DispMemInfo
 	call SetupPaging					;开启分页机制
+	
 	call InitKernel
 	
 	jmp SelectorFlatC:KernelEntryPointPhyAddr
@@ -387,7 +405,7 @@ align 32
 	ARDStruct		equ	BaseOfLoaderPhyAddr + _ARDStruct
 	   dwBaseAddrLow	equ	BaseOfLoaderPhyAddr + _dwBaseAddrLow
 	   dwBaseAddrHigh	equ	BaseOfLoaderPhyAddr + _dwBaseAddrHigh
-	   dwLengthLow	equ	BaseOfLoaderPhyAddr + _dwLengthLow
+	   dwLengthLow		equ	BaseOfLoaderPhyAddr + _dwLengthLow
 	   dwLengthHigh	equ	BaseOfLoaderPhyAddr + _dwLengthHigh	
 	   dwType		equ	BaseOfLoaderPhyAddr + _dwType
 	MemChkBuf		equ	BaseOfLoaderPhyAddr + _MemChkBuf
@@ -401,24 +419,7 @@ align 32
 	;			       输出：CF=0（正确，否则存在错误，终止程序），eax="SAMP"，es:di，ecx，ebx(后序值)
 
 GetSysMem:
-	mov ebx, 0
-	mov ax, CS
-	mov es, ax
-	mov di, _MemChkBuf
-	.loop:
-	mov eax, 0E820h
-	mov ecx, 20
-	mov edx, 0534D4150h
-	int 15h
-	jc LABEL_GET_MEM_INFO_FAILED
-	inc dword [_dwMCRNumber];				;记录内存块数
-	add di, 20
-	cmp ebx, 0
-	jnz .loop
-	jmp LABEL_GET_MEM_INFO_OK
-LABEL_GET_MEM_INFO_FAILED:
-	mov dword [_dwMCRNumber], 0
-LABEL_GET_MEM_INFO_OK:
+	
 	ret
 
 
@@ -532,12 +533,12 @@ InitKernel:
 	and ecx, 0FFFFh
 	
 	;ESI指向第一个程序头表项
-	mov esi, [BaseOfKernelPhyAddr + 01Eh]
+	mov esi, [BaseOfKernelPhyAddr + 01Ch]
 	add esi, BaseOfKernelPhyAddr				;不要忘记
 	Begin:
 	mov eax, [esi + 0]
 	cmp eax, 0
-	jnz NoAction
+	jz NoAction
 	mov eax, [esi + 10h]
 	push eax
 	mov eax, [esi + 04h]
