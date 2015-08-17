@@ -35,9 +35,13 @@ disasm:
 	$(DASM) $(DASMFLAGS) $(KERNEL) > $(DASMOUTPUT)
 	
 buildimg:
-	sudo mount -o loop b.img /mnt/floppy
-	sudo cp -fv kernel.bin /mnt/floppy
-	sudo umount /mnt/floppy
+	sudo mount -t msdos /dev/disk2 /Volumes/floppy/
+	sudo cp -fv kernel.bin /Volumes/floppy/
+	sudo umount /Volumes/floppy/
+#buildimg:
+#	hdiutil mount b.img
+#	cp -fv kernel.bin /Volumes/"Tinux  Boot"
+#	hdiutil unmount /Volumes/"Tinux  Boot"
 	
 $(KERNEL):$(OBJS)
 	$(LD) $(LDFLAGS) -o $(KERNEL) $(OBJS)
