@@ -1,0 +1,38 @@
+#include<tinux.h>
+PUBLIC char* itoa(char *str, u32 num)
+{
+	char *p = str;
+	char ch;
+	int i;
+	
+	*p++='0';
+	*p++='X';
+	
+	if(num == 0)
+		*p++='0';
+	else
+	{
+		for(i = 28; i >=0; i-=4)
+		{
+			ch = (num >> i) & 0xF;
+			if(ch > 0 && ch <= 9)
+			{
+				ch += '0';
+			}
+			else if(ch >= 10 )
+			{
+				ch = ch - 10 + 'A';
+			}
+			*p++=ch;
+		}
+	}
+	*p = 0;
+	return str;
+}
+
+PUBLIC void disp_int(u32 input)
+{
+	char output[16];
+	itoa(output, input);
+	disp_str(output);
+}
