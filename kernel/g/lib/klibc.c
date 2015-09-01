@@ -4,10 +4,9 @@ PUBLIC char* itoa(char *str, u32 num)
 	char *p = str;
 	char ch;
 	int i;
-	int flag = 1;
 	
 	*p++='0';
-	*p++='x';
+	*p++='X';
 	
 	if(num == 0)
 		*p++='0';
@@ -16,11 +15,7 @@ PUBLIC char* itoa(char *str, u32 num)
 		for(i = 28; i >=0; i-=4)
 		{
 			ch = (num >> i) & 0xF;
-			//跳过开头的0
-			if(ch == 0 && flag)
-				continue;
-			flag = 0;
-			if(ch <= 9)
+			if(ch > 0 && ch <= 9)
 			{
 				ch += '0';
 			}

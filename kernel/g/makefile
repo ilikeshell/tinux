@@ -4,19 +4,19 @@ ENTRYOFFSET = 0x400
 
 #program, flags, etc
 ASM		=	nasm
-DASM	=	ndisasm
+DASM		=	ndisasm
 CC		=	clang
-LD		=	ld
+LD		=	ld 
 ASMBFLAGS	=	-I boot/include/
 ASMKFLAGS	=	-I include/ -f elf -F stabs
-CLANGFLAGS	=	-Iinclude -c -fno-builtin -target i686-pc-linux-gnu -g
-#CLANGFLAGS	=	-I include -c -fno-builtin
+CLANGFLAGS	=	-Iinclude -c -fno-builtin -target i686-pc-linux-gnu -ffreestanding -nostdinc -nostdlib -nostdlib -g
+CFLAGS		=	-I include/ -c -fno-builtin
 LDFLAGS		=	-Ttext $(ENTRYPOINT) -m elf_i386
 DASMFLAGS	=	-u -o $(ENTRYPOINT) -e $(ENTRYOFFSET)
 
 #this program
 KERNEL		=	kernel.bin 
-OBJS		=	kernel/kernel.o kernel/global.o kernel/start.o lib/klib.o lib/string.o kernel/8259A.o kernel/protect.o lib/klibc.o
+OBJS		=	kernel/kernel.o kernel/start.o lib/klib.o lib/string.o kernel/8259A.o kernel/protect.o kernel/global.o lib/klibc.o
 DASMOUTPUT	=	kernel.bin.asm
 
 #all phony targets

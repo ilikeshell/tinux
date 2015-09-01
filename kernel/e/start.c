@@ -21,4 +21,5 @@ PUBLIC void cstart( )
 	/* 显示字符串 */
 	DispStr("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n   \
 		-----\"cstart\" begin------\n");
+	DispStr("-----\"cstart\" end------\n");
 }

@@ -1,5 +1,6 @@
 #ifndef TINUX_PROTECT_H_
 #define TINUX_PROTECT_H_
+#include <type.h>
 
 /* GDT和IDT描述符个数 */
 #define GDT_SIZE 128
@@ -29,9 +30,9 @@
 #define INT_VECTOR_IRQ8	0x28	//对应从8259A的第一个端口
 
 /* 8259A中断控制器端口 */
-#define INT_M_CTL		0x20
+#define INT_M_CTL	0x20
 #define INT_M_CTLMASK	0x21
-#define INT_S_CTL		0xA0
+#define INT_S_CTL	0xA0
 #define INT_S_CTLMASK	0xA1
 
 /* 定义ICW1、ICW2、ICW3、ICW4 */
@@ -47,7 +48,7 @@
 
 /* 系统段描述符类型,默认P=1且S=0，即存在的系统段或门 */
 #define	DA_LDT		0x82
-#define DA_TaskGate 0x85
+#define DA_TaskGate 	0x85
 #define DA_386TSS 	0x89
 #define DA_386CGate	0x8C
 #define DA_386IGate	0x8E
@@ -81,4 +82,5 @@ typedef struct s_gate
 /* 保护模式相关函数声明 */
 PUBLIC void init_8259A();
 PUBLIC void init_prot();
+
 #endif

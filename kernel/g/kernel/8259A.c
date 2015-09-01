@@ -17,15 +17,4 @@ PUBLIC void init_8259A()
 	//ICW4指定80X86，正常EOI，Sequential模式
 	out_byte(INT_M_CTLMASK, ICW4);
 	out_byte(INT_S_CTLMASK, ICW4);
-
-	//写入OCW1打开键盘中断
-	out_byte(INT_M_CTLMASK, 0xFD);
-	out_byte(INT_S_CTLMASK, 0xFF);
-}
-
-PUBLIC void spurious_irq(int irq)
-{
-	disp_str("spurious_irq: ");
-	disp_int(irq);
-	disp_str("\n");
 }

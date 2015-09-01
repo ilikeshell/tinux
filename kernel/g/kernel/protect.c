@@ -1,6 +1,5 @@
 #include<tinux.h>
 #include<protect.h>
-#include<global.h>
 
 void divide_error();
 void single_step_exception();
@@ -18,24 +17,6 @@ void stack_exception();
 void general_protection();
 void page_fault();
 void copr_error();
-
-void hwint_00();
-void hwint_01();
-void hwint_02();
-void hwint_03();
-void hwint_04();
-void hwint_05();
-void hwint_06();
-void hwint_07();
-void hwint_08();
-void hwint_09();
-void hwint_10();
-void hwint_11();
-void hwint_12();
-void hwint_13();
-void hwint_14();
-void hwint_15();
-
 
 
 PUBLIC void exception_handler(u32 vec_no, u32 err_code, u32 eip, u32 cs, u32 eflags)
@@ -77,7 +58,7 @@ PUBLIC void exception_handler(u32 vec_no, u32 err_code, u32 eip, u32 cs, u32 efl
 		disp_color_str("\n\n", text_color);
 		disp_color_str("EFLAGS:", text_color);
 		disp_int(eflags);
-		disp_color_str("CS:", text_color);
+		disp_color_str("cs:", text_color);
 		disp_int(cs);
 		disp_color_str("EIP:",text_color);
 		disp_int(eip);
@@ -123,23 +104,4 @@ PUBLIC void init_prot()
 	init_idt_desc(INT_VECTOR_PROTECTION, DA_386IGate, general_protection, PRIVILEGE_KRNL);
 	init_idt_desc(INT_VECTOR_PAGE_FAULT, DA_386IGate, page_fault, PRIVILEGE_KRNL);
 	init_idt_desc(INT_VECTOR_COPROC_ERR, DA_386IGate, copr_error, PRIVILEGE_KRNL);
-
-	/* 初始化8259A的处理程序 */
-	init_idt_desc(INT_VECTOR_IRQ0 + 0, DA_386IGate, hwint_00, PRIVILEGE_KRNL);
-	init_idt_desc(INT_VECTOR_IRQ0 + 1, DA_386IGate, hwint_01, PRIVILEGE_KRNL);
-	init_idt_desc(INT_VECTOR_IRQ0 + 2, DA_386IGate, hwint_02, PRIVILEGE_KRNL);
-	init_idt_desc(INT_VECTOR_IRQ0 + 3, DA_386IGate, hwint_03, PRIVILEGE_KRNL);
-	init_idt_desc(INT_VECTOR_IRQ0 + 4, DA_386IGate, hwint_04, PRIVILEGE_KRNL);
-	init_idt_desc(INT_VECTOR_IRQ0 + 5, DA_386IGate, hwint_05, PRIVILEGE_KRNL);
-	init_idt_desc(INT_VECTOR_IRQ0 + 6, DA_386IGate, hwint_06, PRIVILEGE_KRNL);
-	init_idt_desc(INT_VECTOR_IRQ0 + 7, DA_386IGate, hwint_07, PRIVILEGE_KRNL);
-	init_idt_desc(INT_VECTOR_IRQ8 + 0, DA_386IGate, hwint_08, PRIVILEGE_KRNL);
-	init_idt_desc(INT_VECTOR_IRQ8 + 1, DA_386IGate, hwint_09, PRIVILEGE_KRNL);
-	init_idt_desc(INT_VECTOR_IRQ8 + 2, DA_386IGate, hwint_10, PRIVILEGE_KRNL);
-	init_idt_desc(INT_VECTOR_IRQ8 + 3, DA_386IGate, hwint_11, PRIVILEGE_KRNL);
-	init_idt_desc(INT_VECTOR_IRQ8 + 4, DA_386IGate, hwint_12, PRIVILEGE_KRNL);
-	init_idt_desc(INT_VECTOR_IRQ8 + 5, DA_386IGate, hwint_13, PRIVILEGE_KRNL);
-	init_idt_desc(INT_VECTOR_IRQ8 + 6, DA_386IGate, hwint_14, PRIVILEGE_KRNL);
-	init_idt_desc(INT_VECTOR_IRQ8 + 7, DA_386IGate, hwint_15, PRIVILEGE_KRNL);
 }
-
