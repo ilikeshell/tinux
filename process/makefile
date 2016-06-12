@@ -47,9 +47,9 @@ BuildMacImg:
 	cp -fv kernel.bin "/Volumes/Tinux  Boot"
 	hdiutil unmount "/Volumes/Tinux  Boot"
 
-BuildWinImg
-	imdisk -a -m A: -o rem -f e:\os\fdos\b.img
-	cp -fv kernel.bin A:\
+BuildWinImg:
+	imdisk -a -m A: -o rem -f e:/os/fdos/A.img
+	cp -fv kernel.bin A:
 	imdisk -d -m A:
 	
 $(KERNEL):$(OBJS)
