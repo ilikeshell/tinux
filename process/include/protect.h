@@ -5,6 +5,83 @@
 #define GDT_SIZE 128
 #define IDT_SIZE 256
 
+/* LDT描述符个数  */
+#define LDT_SIZE 2
+
+/* GDT */
+/* 描述符索引 */
+#define INDEX_DUMMY			0
+#define INDEX_FLAT_C		1
+#define INDEX_FLAT_RW		2
+#define INDEX_VIDEO			3
+#define INDEX_TSS			4
+#define INDEX_LDT_FIRST		5
+
+/* 选择子 */
+#define SELECTOR_DUMMY			0
+#define SELECTOR_FLAT_C			0x08
+#define SELECTOR_FLAT_RW		0x10
+#define SELECTOR_VIDEO			(0x18+3)
+#define SELECTOR_TSS			0x20
+#define SELECTOR_LDT_FIRST		0x28
+
+#define SELECTOR_KERNEL_CS		SELECTOR_FLAT_C
+#define SELECTOR_KERNEL_DS		SELECTOR_FLAT_RW
+#define SELECTOR_KERNEL_GS		SELECTOR_VIDEO
+
+/* 定义选择子属性 */
+#define SA_RPL_MASK			0xFFFC
+#define SA_RPL0				0
+#define SA_RPL1				1
+#define SA_RPL2				2
+#define SA_RPL3				3
+
+#define SA_TI_MASK			0xFFFB
+#define SA_TIG				0
+#define SA_TIL				4
+
+/* 描述符类型值说明 */
+#define DA_32				0x4000
+#define DA_LIMIT_4K			0x8000
+#define DA_DPL0				0x00
+#define DA_DPL1				0x20
+#define DA_DPL2				0x40
+#define DA_DPL3				0x60
+
+/* 存储段描述符类型值说明 */
+#define DA_DR				0x90
+#define DA_DRW				0x92
+#define DA_DRWA				0x93
+#define DA_C				0x98
+#define DA_CR				0X9A
+#define DA_CCO				0X9C
+#define DA_CCOR				0X9E
+
+/* 系统段描述符类型值说明 */
+#define DA_LDT				0x82
+#define DA_TaskGate			0x85
+#define DA_386TSS			0x89
+#define DA_386CGATE     	0x8C
+#define DA_386IGATE			0x8E
+#define DA_386TGATE			0x8F
+
+/* 定义内核代码段选择子 */
+#define SELECTOR_CS_KERNEL  8
+
+/* 系统段描述符类型,默认P=1且S=0，即存在的系统段或门 */
+#define	DA_LDT		0x82
+#define DA_TaskGate 0x85
+#define DA_386TSS 	0x89
+#define DA_386CGate	0x8C
+#define DA_386IGate	0x8E
+#define DA_386TGate	0x8F
+
+
+/* 描述符特权级 */
+#define PRIVILEGE_KRNL	0x0
+#define PRIVILEGE_USER 0x60
+
+
 /* 定义中断向量 */
 #define INT_VECTOR_DIVIDE	0
 #define INT_VECTOR_DEBUG 	1
@@ -42,21 +119,6 @@
 #define ICW3_S	0x2		//对应主8259的IR2
 #define ICW4	0x1		//80X86模式，正常EOI，Sequential模式
 
-/* 定义内核代码段选择子 */
-#define SELECTOR_CS_KERNEL  8
-
-/* 系统段描述符类型,默认P=1且S=0，即存在的系统段或门 */
-#define	DA_LDT		0x82
-#define DA_TaskGate 0x85
-#define DA_386TSS 	0x89
-#define DA_386CGate	0x8C
-#define DA_386IGate	0x8E
-#define DA_386TGate	0x8F
-
-/* 描述符特权级 */
-#define PRIVILEGE_KRNL	0x0
-#define PRIVILEGE_USER 0x60
-
 /* GDT描述符 */
 typedef struct s_descriptor
 {
@@ -78,7 +140,41 @@ typedef struct s_gate
 	u16 offset_high;
 }GATE;
 
+typedef struct s_tss{
+	u32 backlink;
+	u32 esp0;
+	u32 ss0;
+	u32 esp1;
+	u32 ss1;
+	u32 esp2;
+	u32 ss2;
+	u32 cr3;
+	u32 eip;
+	u32 flags;
+	u32 eax;
+	u32 ecx;
+	u32 edx;
+	u32 ebx;
+	u32 esp;
+	u32 ebp;
+	u32 esi;
+	u32 edi;
+	u32 es;
+	u32 cs;
+	u32 ss;
+	u32 ds;
+	u32 fs;
+	u32 gs;
+	u32 ldt;
+	u32 trap;
+	u32 iobase;
+}TSS;
+
 /* 保护模式相关函数声明 */
 PUBLIC void init_8259A();
 PUBLIC void init_prot();
+
+/* 线性地址转物理地址 */
+#define vir2phys(seg_base, vir) (u32)(((u32)seg_base) + (u32)(vir))
+
 #endif

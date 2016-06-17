@@ -6,6 +6,7 @@ SELECTOR_KERNEL_GS	equ	1Bh
 extern cstart
 extern spurious_irq
 extern exception_handler
+extern kernel_main
 ;导入全局变量
 extern gdt_ptr
 extern idt_ptr
@@ -79,8 +80,9 @@ _start:
 	mov ah, 0Fh
 	mov al, 'K'
 	mov [gs:((80 * 2 + 39) * 2)], ax
-	sti
-	hlt
+	;sti
+	;hlt
+	jmp kernel_main
 	
 divide_error:
 	push 0xFFFFFFFF
@@ -162,7 +164,8 @@ exception:
 %endmacro
 
 hwint_00:
-		hwint_master 0
+		;hwint_master 0
+		iretd
 hwint_01:
 		hwint_master 1
 hwint_02:

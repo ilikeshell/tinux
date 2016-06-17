@@ -5,6 +5,7 @@
 #include <const.h>
 #include <proto.h>
 #include <protect.h>
+#include <string.h>
 //#include <global.h>
 
 #endif

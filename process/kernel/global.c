@@ -5,6 +5,7 @@
 #include <protect.h>
 #include <proto.h>
 #include <global.h>
+#include <proc.h>
 
 
 PUBLIC void init_disp_pos()
@@ -12,3 +13,6 @@ PUBLIC void init_disp_pos()
 	disp_pos = 0;
 
 }
+
+PUBLIC PROCESS 	proc_table[NR_TASKS];
+PUBLIC char 	task_stack[STACK_SIZE_TOTAL];

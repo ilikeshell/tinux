@@ -102,6 +102,25 @@ PRIVATE void init_idt_desc(u8 vector, u8 desc_type, int_hander hander, u8 privil
 	p_gate->dcount = 0;
 }
 
+/* 初始化描述符 */
+PRIVATE void init_descriptor(DESCRIPTOR *p_desc, u32 base, u32 limit, u16 attribute)
+{
+	p_desc->base_low = 0xFFFF & base;
+	p_desc->base_mid = 0xFF & (base >> 16);
+	p_desc->base_high = 0XFF & (base >> 24);
+	p_desc->limit_low = 0xFFFF & limit;
+	p_desc->limit_high_attr2 = (0x0F & (limit >> 16)) | (0xF0 & (attribute >> 8));
+	p_desc->attr1 = 0xFF & attribute;
+}
+
+/* 由段名求绝对地址 */
+PUBLIC u32 seg2phys(u16 seg)
+{
+	DESCRIPTOR *p_desc = &gdt[seg >> 3];
+
+	return p_desc->base_low + (p_desc->base_mid << 16) + (p_desc->base_high << 24);
+}
+
 PUBLIC void init_prot()
 {
 	init_8259A();
@@ -141,5 +160,20 @@ PUBLIC void init_prot()
 	init_idt_desc(INT_VECTOR_IRQ8 + 5, DA_386IGate, hwint_13, PRIVILEGE_KRNL);
 	init_idt_desc(INT_VECTOR_IRQ8 + 6, DA_386IGate, hwint_14, PRIVILEGE_KRNL);
 	init_idt_desc(INT_VECTOR_IRQ8 + 7, DA_386IGate, hwint_15, PRIVILEGE_KRNL);
+
+	//初始化LDT描述符
+
+
+	//TSS相关
+	memset(&tss, 0, sizeof(tss));
+	tss.ss0 = SELECTOR_KERNEL_DS;
+	tss.iobase = sizeof(tss);
+	init_descriptor(&gdt[INDEX_TSS],
+			vir2phys(seg2phys(SELECTOR_KERNEL_DS), &tss),
+			sizeof(tss)-1,
+			DA_386TSS);
+
 }
+
+
 

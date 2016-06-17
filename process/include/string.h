@@ -6,4 +6,5 @@
 
 /* 所需的函数声明 */
 PUBLIC void* memcpy(void* pDst, void* pSrc, int iSize);
+PUBLIC void  memset(void* pdest, char ch, int size);
 PUBLIC char* itoa(char *str, u32 num);
