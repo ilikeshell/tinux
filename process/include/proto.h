@@ -7,6 +7,8 @@ PUBLIC void disp_str(char *info);
 PUBLIC void disp_color_str(char *info, u8 text_color);
 PUBLIC void disp_int(u32 input);
 
+PUBLIC void delay(int time);
+
 //klib.c
 PUBLIC void delay(int time);
 PUBLIC char* itoa(char *str, u32 num);

@@ -98,7 +98,7 @@ PRIVATE void init_idt_desc(u8 vector, u8 desc_type, int_hander hander, u8 privil
 	p_gate->offset_low = offset & 0xFFFF;
 	p_gate->offset_high = (offset >> 16) & 0xFFFF;
 	p_gate->selector = SELECTOR_CS_KERNEL;
-	p_gate->attr = desc_type | (privilege << 5);
+	p_gate->attr = desc_type | privilege;
 	p_gate->dcount = 0;
 }
 
@@ -162,11 +162,16 @@ PUBLIC void init_prot()
 	init_idt_desc(INT_VECTOR_IRQ8 + 7, DA_386IGate, hwint_15, PRIVILEGE_KRNL);
 
 	//初始化LDT描述符
-
+	init_descriptor(&gdt[INDEX_LDT_FIRST],
+			vir2phys(seg2phys(SELECTOR_KERNEL_DS),proc_table[0].ldts),
+			LDT_SIZE * sizeof(DESCRIPTOR) - 1,
+			DA_LDT);
 
 	//TSS相关
 	memset(&tss, 0, sizeof(tss));
 	tss.ss0 = SELECTOR_KERNEL_DS;
+	tss.esp0 = (u32)(&(proc_table[0].ldt_sel))
+	//tss.esp0放在汇编代码里设置
 	tss.iobase = sizeof(tss);
 	init_descriptor(&gdt[INDEX_TSS],
 			vir2phys(seg2phys(SELECTOR_KERNEL_DS), &tss),

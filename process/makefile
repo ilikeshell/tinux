@@ -10,11 +10,16 @@ LD		=	ld
 ASMBFLAGS	=	-I boot/include/
 ASMKFLAGS	=	-I include/ -f elf -F stabs
 CLANGFLAGS	=	-Iinclude -c -fno-builtin -target i686-pc-linux-gnu -g
+
 #CLANGFLAGS	=	-Iinclude -c -fno-builtin -target elf32-i386 -g 
 #CLANGFLAGS	=	-I include -c -fno-builtin
 LDFLAGS		=	-Ttext $(ENTRYPOINT)
 #LDFLAGS		=	-Ttext $(ENTRYPOINT) --oformat  elf32-i386 -m elf_i386
 #LDFLAGS		=	-flavor gnu -target i686-pc-linux-gnu
+
+#CLANGFLAGS	=	-I include -c -fno-builtin
+LDFLAGS		=	-Ttext $(ENTRYPOINT) -m elf_i386
+
 DASMFLAGS	=	-u -o $(ENTRYPOINT) -e $(ENTRYOFFSET)
 
 #this program
@@ -29,8 +34,12 @@ DASMOUTPUT	=	kernel.bin.asm
 everything:$(KERNEL)
 all:realclean everything
 final:all clean
+
 macimg:final BuildMacImg
 winimg:final BuildWinImg
+
+image:final buildimg
+
 clean:
 	rm -f $(OBJS)
 realclean:
@@ -42,6 +51,7 @@ disasm:
 #	sudo mount -t msdos /dev/disk2 /Volumes/floppy/
 #	sudo cp -fv kernel.bin /Volumes/floppy/
 #	sudo umount /Volumes/floppy/
+
 BuildMacImg:
 	hdiutil mount ~/osdev/fdos/b.img
 	cp -fv kernel.bin "/Volumes/Tinux  Boot"
@@ -51,7 +61,13 @@ BuildWinImg:
 	imdisk -a -m A: -o rem -f e:/os/fdos/A.img
 	cp -fv kernel.bin A:
 	imdisk -d -m A:
-	
+
+buildimg:
+	hdiutil mount ~/osdev/fdos/b.img
+	cp -fv kernel.bin "/Volumes/Tinux  Boot"
+	hdiutil unmount "/Volumes/Tinux  Boot"
+
+
 $(KERNEL):$(OBJS)
 	$(LD) $(LDFLAGS) -o $(KERNEL) $(OBJS)
 	

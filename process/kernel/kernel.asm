@@ -1,16 +1,21 @@
+%include "sconst.inc"
+
 SELECTOR_KERNEL_CS	equ	8
 SELECTOR_KERNEL_DS	equ	10h
-SELECTOR_KERNEL_GS	equ	1Bh
+SELECTOR_KERNEL_GS	equ	18h
 
 ;导入函数
 extern cstart
 extern spurious_irq
 extern exception_handler
 extern kernel_main
+
 ;导入全局变量
 extern gdt_ptr
 extern idt_ptr
-
+extern p_proc_ready
+extern tss
+extern disp_pos
 
 [section .bss]
 StackSpace	resb	2 * 1024
@@ -77,12 +82,19 @@ _start:
 	;ud2
 	;jmp 0x40:0
 	
-	mov ah, 0Fh
-	mov al, 'K'
-	mov [gs:((80 * 2 + 39) * 2)], ax
+	;mov ah, 0Fh
+	;mov al, 'K'
+	;mov [gs:((80 * 2 + 39) * 2)], ax
+
 	;sti
 	;hlt
+	;加载TSS描述符
+	xor eax, eax
+	mov ax, SELECTOR_TSS
+	ltr ax
+
 	jmp kernel_main
+
 	
 divide_error:
 	push 0xFFFFFFFF
@@ -165,7 +177,7 @@ exception:
 
 hwint_00:
 		;hwint_master 0
-		iretd
+		iretd				;打开时钟中断
 hwint_01:
 		hwint_master 1
 hwint_02:
@@ -198,5 +210,23 @@ hwint_15:
 		hwint_slave 15
 
 
+;===================================================================
+;					restart
+;   准备好第一个进程运行的环境，用iretd进行切换
+;===================================================================
+restart:
+	mov esp, [p_proc_ready]
+	lldt [esp + P_LDT_SEL]
+	;lea eax, [esp + P_STACKTOP]
+	;mov dword [tss + TSS3_S_SP0], eax   ;tss ??????
 
+	pop gs
+	pop fs
+	pop es
+	pop ds
+	popad
+
+	add esp, 4
+
+	iretd
 

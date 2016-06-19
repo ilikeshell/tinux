@@ -40,9 +40,15 @@
 #define SA_TIG				0
 #define SA_TIL				4
 
+/* RPL */
+#define RPL_KRNL	SA_RPL0
+#define RPL_TASK	SA_RPL1
+#define RPL_USER	SA_RPL3
+
+
 /* 描述符类型值说明 */
-#define DA_32				0x4000
 #define DA_LIMIT_4K			0x8000
+#define DA_32				0x4000
 #define DA_DPL0				0x00
 #define DA_DPL1				0x20
 #define DA_DPL2				0x40
@@ -57,7 +63,7 @@
 #define DA_CCO				0X9C
 #define DA_CCOR				0X9E
 
-/* 系统段描述符类型值说明 */
+/* 系统段描述符类型,默认P=1且S=0，即存在的系统段或门 */
 #define DA_LDT				0x82
 #define DA_TaskGate			0x85
 #define DA_386TSS			0x89
@@ -65,41 +71,33 @@
 #define DA_386IGATE			0x8E
 #define DA_386TGATE			0x8F
 
-/* 定义内核代码段选择子 */
-#define SELECTOR_CS_KERNEL  8
-
-/* 系统段描述符类型,默认P=1且S=0，即存在的系统段或门 */
-#define	DA_LDT		0x82
-#define DA_TaskGate 0x85
-#define DA_386TSS 	0x89
-#define DA_386CGate	0x8C
-#define DA_386IGate	0x8E
-#define DA_386TGate	0x8F
-
-
 /* 描述符特权级 */
-#define PRIVILEGE_KRNL	0x0
-#define PRIVILEGE_USER 0x60
+#define PRIVILEGE_KRNL		0x00
+#define PRIVILEGE_TASK		0x20
+#define PRIVILEGE_USER 		0x60
 
+/* 每个任务有一个单独的 LDT, 每个 LDT 中的描述符个数: */
+#define LDT_SIZE	2
 
 /* 定义中断向量 */
-#define INT_VECTOR_DIVIDE	0
-#define INT_VECTOR_DEBUG 	1
-#define INT_VECTOR_NMI		2
+#define INT_VECTOR_DIVIDE		0
+#define INT_VECTOR_DEBUG 		1
+#define INT_VECTOR_NMI			2
 #define INT_VECTOR_BREAKPOINT	3
-#define INT_VECTOR_OVERFLOW	4
-#define INT_VECTOR_BOUNDS	5
-#define INT_VECTOR_INVAL_OP	6
+#define INT_VECTOR_OVERFLOW		4
+#define INT_VECTOR_BOUNDS		5
+#define INT_VECTOR_INVAL_OP		6
 #define INT_VECTOR_COPROC_NOT	7
 #define INT_VECTOR_DOUBLE_FAULT 8
 #define INT_VECTOR_COPROC_SEG	9
 #define INT_VECTOR_INVAL_TSS	10
-#define INT_VECTOR_SEG_NOT	11
+#define INT_VECTOR_SEG_NOT		11
 #define INT_VECTOR_STACK_FAULT	12
 #define INT_VECTOR_PROTECTION	13
-#define INT_VECTOR_PAGE_FAULT 14
-//#define INT_VECTOR_DIVIDE 15
-#define INT_VECTOR_COPROC_ERR 16
+#define INT_VECTOR_PAGE_FAULT 	14
+#define INT_VECTOR_DIVIDE 		15
+#define INT_VECTOR_COPROC_ERR 	16
+
 
 /* 8259A对应的中断向量 */
 #define INT_VECTOR_IRQ0	0x20	//对应主8259A的第一个端口
