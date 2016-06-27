@@ -519,11 +519,11 @@ SetupPaging:
 	nop
 	
 	;显示分页成功字符串
-	call DispReturn
-	call DispReturn
-	push szPagingMsg
-	call DispStr
-	add esp, 4
+	;call DispReturn
+	;call DispReturn
+	;push szPagingMsg
+	;call DispStr
+	;add esp, 4
 	ret
 	
 ;初始化内核
