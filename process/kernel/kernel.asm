@@ -8,6 +8,7 @@ extern kernel_main
 extern disp_str
 extern delay
 extern clock_handler
+extern irq_table
 
 ;导入全局变量
 extern gdt_ptr
@@ -181,65 +182,7 @@ exception:
 %endmacro
 
 hwint_00:
-		;hwint_master 0
-
-		sub esp, 4
-		;保存寄存器的值
-		pushad
-		push ds
-		push es
-		push fs
-		push gs
-
-		;设置段寄存器
-		mov dx, ss
-		mov ds, dx
-		mov es, dx
-
-		inc byte [gs:0]
-
-		;设置EOI
-		mov al, EOI
-		out INT_M_CTL, al
-
-		;判断是否中断重入
-		inc dword [k_reenter]
-		cmp dword [k_reenter], 0
-		jne .re_enter
-
-		;切到内核栈
-		mov esp, StackTop
-
-		;开中断
-		sti
-
-		;验证是否影响到中断处理程序
-		push 0
-		call clock_handler
-		add esp, 4
-
-		;关中断
-		cli
-
-		;离开内核栈
-		mov esp, [p_proc_ready]
-
-		;设置tss.esp0
-		lea eax, [esp + P_STACKTOP]
-		mov dword [tss + TSS3_S_SP0], eax
-
-.re_enter:
-		dec dword [k_reenter]
-		;恢复寄存器的值
-		pop gs
-		pop fs
-		pop es
-		pop ds
-		popad
-		;跳过返回地址
-		add esp, 4
-
-		iretd
+		hwint_master 0
 hwint_01:
 		hwint_master 1
 hwint_02:
@@ -274,22 +217,113 @@ hwint_15:
 
 ;===================================================================
 ;					restart
-;   准备好第一个进程运行的环境，用iretd进行切换
+;   准备好进程运行的环境，用iretd进行切换
 ;===================================================================
 restart:
 	mov esp, [p_proc_ready]
 	lldt [esp + P_LDT_SEL]
-	;lea eax, [esp + P_STACKTOP]
-	mov eax, esp
-	add eax, P_STACKTOP
-	mov dword [tss + TSS3_S_SP0], eax   ;tss ??????
-
+	lea eax, [esp + P_STACKTOP]
+	mov dword [tss + TSS3_S_SP0], eax
+restart_reenter:
+	dec dword [k_reenter]
 	pop gs
 	pop fs
 	pop es
 	pop ds
 	popad
-
 	add esp, 4
-
 	iretd
+
+;===================================================================
+;					save
+;   进入中断时保存环境
+;===================================================================
+save:
+		;保存寄存器的值
+		pushad
+		push ds
+		push es
+		push fs
+		push gs
+
+		;设置段寄存器
+		mov dx, ss
+		mov ds, dx
+		mov es, dx
+
+		mov eax, esp		;the start address of process table
+
+		;判断是否中断重入
+		inc dword [k_reenter]
+		cmp dword [k_reenter], 0
+		jne .1
+		mov esp, StackTop
+		push restart
+		jmp [eax + RETADR - P_STACKBASE]
+		.1:
+		push restart_reenter
+		jmp [eax + RETADR - P_STACKBASE]
+
+;===================================================================
+;					hwint_master 宏
+;   用于处理主8259A中断
+;===================================================================
+%macro hwint_master 1
+		call save
+
+		in al, INT_M_CTLMASK		;\
+		;  1左移%1位					;|
+		or al, 1 << %1				;|   shutdown current interrupt
+		out INT_M_CTLMASK, al		;/
+
+		;设置EOI
+		mov al, EOI
+		out INT_M_CTL, al
+
+		sti
+		push %1						;\
+		call [irq_table + 4 * %1]	;|
+		pop ecx						;/
+		cli
+
+		in al, INT_M_CTLMASK		;\
+		;  1左移%1位					;|
+		and al, ~(1 << %1)			;|   restore current interrupt
+		out INT_M_CTLMASK, al		;/
+
+		ret
+%endmacro
+
+
+;===================================================================
+;					hwint_slave 宏
+;   用于处理从8259A中断
+;===================================================================
+%macro hwint_slave 1
+		call save
+
+		in al, INT_S_CTLMASK		;\
+		;  1左移(%1 - 8)位			;|
+		or al, 1 << (%1 - 8)		;|   shutdown current interrupt
+		out INT_S_CTLMASK, al		;/
+
+		;设置EOI
+		mov al, EOI
+		out INT_S_CTL, al
+
+		sti
+		push %1						;\
+		call [irq_table + 4 * %1]	;|
+		pop ecx						;/
+		cli
+
+		in al, INT_S_CTLMASK		;\
+		;  1左移(%1 - 8)位			;|
+		and al, ~(1 << (%1 - 8))	;|   restore current interrupt
+		out INT_S_CTLMASK, al		;/
+
+		ret
+%endmacro
+
+
+

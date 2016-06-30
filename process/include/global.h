@@ -26,3 +26,4 @@ extern TASK task_table[];
 
 PUBLIC void init_disp_pos();
 PUBLIC void restart();
+

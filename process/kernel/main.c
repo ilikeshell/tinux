@@ -88,7 +88,7 @@ PUBLIC int kernel_main()
 	}
 
 	/* 中断重入指示 */
-	k_reenter = -1;
+	k_reenter = 0;
 
 	p_proc_ready = proc_table;
 	restart();

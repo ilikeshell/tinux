@@ -12,4 +12,7 @@
 #define TRUE	1
 #define FALSE	0
 
+/* 主从两个8259A处理中断的个数 */
+#define NR_IRQ 	16
+
 #endif
