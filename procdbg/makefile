@@ -26,7 +26,7 @@ DASMFLAGS	=	-u -o $(ENTRYPOINT) -e $(ENTRYOFFSET)
 #this program
 KERNEL		=	kernel.bin 
 OBJS		=	kernel/kernel.o kernel/global.o kernel/start.o  kernel/main.o lib/klib.o lib/string.o \
-		kernel/8259A.o kernel/protect.o kernel/clock.o lib/klibc.o kernel/syscall.o kernel/proc.o
+		kernel/8259A.o kernel/protect.o kernel/clock.o lib/klibc.o kernel/syscall.o kernel/proc.o kernel/schedule.o
 DASMOUTPUT	=	kernel.bin.asm
 
 #all phony targets
@@ -92,6 +92,9 @@ kernel/clock.o: kernel/clock.c include/tinux.h include/type.h include/const.h in
   include/string.h include/proc.h
 	$(CC) $(CLANGFLAGS) -o $@ $<
 kernel/proc.o: kernel/proc.c include/tinux.h include/type.h include/const.h include/proto.h include/global.h include/protect.h \
+  include/string.h include/proc.h
+	$(CC) $(CLANGFLAGS) -o $@ $<
+kernel/schedule.o: kernel/schedule.c include/tinux.h include/type.h include/const.h include/proto.h include/global.h include/protect.h \
   include/string.h include/proc.h
 	$(CC) $(CLANGFLAGS) -o $@ $<
 kernel/syscall.o:kernel/syscall.asm include/sconst.inc

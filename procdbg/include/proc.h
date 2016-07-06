@@ -36,6 +36,11 @@ typedef struct s_sproc{
 
 	u16 ldt_sel;
 	DESCRIPTOR ldts[LDT_SIZE];
+
+	/* 剩余的ticks */
+	int ticks;
+	int priority;
+
 	u32 pid;
 	char p_name[32];
 }PROCESS;
