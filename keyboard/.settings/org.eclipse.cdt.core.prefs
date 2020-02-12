@@ -7,6 +7,11 @@ environment/project/cdt.managedbuild.config.gnu.macosx.exe.debug.516029779/PWD/o
 environment/project/cdt.managedbuild.config.gnu.macosx.exe.debug.516029779/PWD/value=/Users/kaiyan/Documents/workspace/procdbg
 environment/project/cdt.managedbuild.config.gnu.macosx.exe.debug.516029779/append=true
 environment/project/cdt.managedbuild.config.gnu.macosx.exe.debug.516029779/appendContributed=true
+environment/project/cdt.managedbuild.toolchain.gnu.cross.base.396043741/PATH/delimiter=\:
+environment/project/cdt.managedbuild.toolchain.gnu.cross.base.396043741/PATH/operation=replace
+environment/project/cdt.managedbuild.toolchain.gnu.cross.base.396043741/PATH/value=/opt/binutils/bin\:/opt/gdb/bin\:/bin\:/usr/bin\:/usr/sbin\:/sbin
+environment/project/cdt.managedbuild.toolchain.gnu.cross.base.396043741/append=true
+environment/project/cdt.managedbuild.toolchain.gnu.cross.base.396043741/appendContributed=true
 environment/project/cdt.managedbuild.toolchain.gnu.macosx.base.551431655/PATH/delimiter=\:
 environment/project/cdt.managedbuild.toolchain.gnu.macosx.base.551431655/PATH/operation=replace
 environment/project/cdt.managedbuild.toolchain.gnu.macosx.base.551431655/PATH/value=/opt/local/bin\:/opt/local/sbin\:/opt/local/bin\:/opt/local/sbin\:/opt/binutils/bin\:/opt/gdb/bin\:/usr/local/bin\:/usr/bin\:/bin\:/usr/sbin\:/sbin\:/opt/X11/bin\:/Library/TeX/texbin
